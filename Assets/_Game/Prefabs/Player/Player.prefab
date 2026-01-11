@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 2223031690082782179}
   - component: {fileID: 6981317795113004753}
   - component: {fileID: 1803658610825849891}
+  - component: {fileID: 8887672228679079423}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -214,6 +215,23 @@ MonoBehaviour:
   characterController: {fileID: 6354411524563203234}
   speed: 5
   rotationSpeed: 10
+--- !u!114 &8887672228679079423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1595e356ef2bd46419a3987b0368b1f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Player.ZoneHandler
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  isSafeZone: 0
+  showDebugLogs: 1
 --- !u!1 &4482132918592436565
 GameObject:
   m_ObjectHideFlags: 0
