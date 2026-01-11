@@ -48,12 +48,9 @@ namespace Game.Network
             base.OnClientConnect();
             Debug.Log("[Client] Conectado al servidor");
 
-            // Enviar mensaje al servidor con el nombre del personaje
-            if (!string.IsNullOrEmpty(playerName))
-            {
-                CharacterMessage msg = new CharacterMessage { characterName = playerName };
-                NetworkClient.Send(msg);
-            }
+            // NOTA: El nombre del personaje ya está guardado en playerName
+            // y se usa en OnServerAddPlayer. No necesitamos enviar mensaje custom por ahora.
+            // TODO: Implementar CharacterMessage handler cuando necesitemos selección de clase
         }
 
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
