@@ -273,13 +273,15 @@ namespace Game.Combat
         [Server]
         private void ApplyDamage(AbilityData ability, NetworkIdentity target)
         {
-            PlayerStats targetStats = target.GetComponent<PlayerStats>();
+            IEntityStats targetStats = target.GetComponent<IEntityStats>();
             if (targetStats != null)
             {
                 int totalDamage = ability.baseDamage + playerStats.damage;
-                targetStats.TakeDamage(totalDamage);
                 
-                Debug.Log($"[PlayerCombat][Server] {gameObject.name} hizo {totalDamage} de daño a {target.gameObject.name}");
+                // Pasar 'playerStats' como atacante
+                targetStats.TakeDamage(totalDamage, playerStats);
+                
+                Debug.Log($"[PlayerCombat][Server] {gameObject.name} hizo {totalDamage} de daño a {targetStats.EntityName}");
             }
         }
 

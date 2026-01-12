@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using Mirror;
 using Game.Player;
+using Game.Core;
 
 namespace Game.UI
 {
@@ -28,7 +29,7 @@ namespace Game.UI
         public TextMeshProUGUI healthText;
 
         private NetworkIdentity currentTarget;
-        private PlayerStats currentTargetStats;
+        private IEntityStats currentTargetStats;
 
         private void Start()
         {
@@ -44,13 +45,22 @@ namespace Game.UI
             // Actualizar UI del objetivo cada frame
             if (currentTarget != null && currentTargetStats != null)
             {
-                UpdateTargetUI();
+                if (currentTargetStats.CurrentHealth <= 0)
+                {
+                    ClearTarget();
+                }
+                else
+                {
+                    UpdateTargetUI();
+                }
+            }
+            else if (targetPanel != null && targetPanel.activeSelf)
+            {
+                // Safety: Hide if references lost unexpectedly
+                targetPanel.SetActive(false); 
             }
         }
 
-        /// <summary>
-        /// Establece el objetivo a mostrar
-        /// </summary>
         /// <summary>
         /// Establece el objetivo a mostrar
         /// </summary>
@@ -63,11 +73,11 @@ namespace Game.UI
             }
 
             currentTarget = target;
-            currentTargetStats = target.GetComponent<PlayerStats>();
+            currentTargetStats = target.GetComponent<IEntityStats>();
 
             if (currentTargetStats == null)
             {
-                Debug.LogWarning("[TargetFrameUI] El objetivo no tiene PlayerStats");
+                Debug.LogWarning($"[TargetFrameUI] El objetivo {target.name} no tiene IEntityStats (ni PlayerStats ni NpcStats)");
                 ClearTarget();
                 return;
             }
@@ -86,12 +96,12 @@ namespace Game.UI
             // Actualizar nombre y clase
             if (targetNameText != null)
             {
-                targetNameText.text = target.gameObject.name;
+                targetNameText.text = currentTargetStats.EntityName; // Usar nombre de la interfaz
             }
 
             if (targetClassText != null)
             {
-                targetClassText.text = currentTargetStats.className;
+                targetClassText.text = currentTargetStats.ClassName;
             }
 
             UpdateTargetUI();
@@ -122,14 +132,14 @@ namespace Game.UI
             // Actualizar barra de vida
             if (healthBar != null)
             {
-                float healthPercent = (float)currentTargetStats.currentHealth / currentTargetStats.maxHealth;
+                float healthPercent = (float)currentTargetStats.CurrentHealth / currentTargetStats.MaxHealth;
                 healthBar.fillAmount = healthPercent;
             }
 
             // Actualizar texto de HP
             if (healthText != null)
             {
-                healthText.text = $"{currentTargetStats.currentHealth}/{currentTargetStats.maxHealth}";
+                healthText.text = $"{currentTargetStats.CurrentHealth}/{currentTargetStats.MaxHealth}";
             }
         }
     }

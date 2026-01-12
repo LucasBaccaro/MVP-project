@@ -129,7 +129,7 @@ public class PlayerInventory : NetworkBehaviour
                 int goldToAdd = itemData.goldValue * amount;
                 stats.gold += goldToAdd;
                 Debug.Log($"PlayerInventory: Añadido {goldToAdd} oro ({amount}x {itemData.itemName})");
-                RpcShowGoldPickup(goldToAdd);
+                TargetShowGoldPickup(connectionToClient, goldToAdd);
             }
             return; // No añadir al inventario
         }
@@ -285,8 +285,8 @@ public class PlayerInventory : NetworkBehaviour
         // Aquí puedes reproducir sonido/partículas
     }
 
-    [ClientRpc]
-    void RpcShowGoldPickup(int goldAmount)
+    [TargetRpc]
+    void TargetShowGoldPickup(NetworkConnection target, int goldAmount)
     {
         Debug.Log($"+{goldAmount} oro recogido");
         // Aquí puedes mostrar un texto flotante, sonido, partículas doradas, etc.
@@ -379,6 +379,22 @@ public class PlayerInventory : NetworkBehaviour
         // Buscar stack
         ItemData itemData = ItemDatabase.Instance?.GetItem(itemID);
         if (itemData == null) return;
+
+        // CASO ESPECIAL: Currency (Server Side - LootBag Pickup)
+        if (itemData.itemType == ItemType.Currency)
+        {
+            PlayerStats stats = GetComponent<PlayerStats>();
+            if (stats != null)
+            {
+                int goldToAdd = itemData.goldValue * amount;
+                stats.gold += goldToAdd;
+                Debug.Log($"[Server] PlayerInventory: Añadido {goldToAdd} oro ({amount}x {itemData.itemName}) vía Loot.");
+                
+                // Notificar cliente dueño para efecto visual
+                TargetShowGoldPickup(connectionToClient, goldToAdd);
+            }
+            return; // No añadir al inventario físico
+        }
 
         int remaining = amount;
 

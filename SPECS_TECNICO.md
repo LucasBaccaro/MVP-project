@@ -1398,6 +1398,102 @@ El sistema maneja la muerte del jugador, el dropeo de items y el respawn con sin
 
 ---
 
+## 🤖 SISTEMA DE NPCs E IA (FASE 7)
+
+### Arquitectura de IA
+
+El sistema de IA es **Server-Authoritative**. Los clientes solo visualizan la posición sincronizada.
+
+**Componentes Clave:**
+1.  **NpcData.cs:** ScriptableObject para configurar stats y loot.
+2.  **EnemyController.cs:** Mente de la IA (Server).
+3.  **NpcStats.cs:** Vida, daño y generación de loot.
+4.  **IEntityStats:** Interface común para Players y NPCs.
+
+### Scripts del Sistema
+
+#### 1. NpcData.cs (ScriptableObject)
+Define propiedades del enemigo:
+- `npcName`: Nombre visual.
+- `maxHP`, `damage`, `moveSpeed`.
+- `aggroRange`: Distancia de detección.
+- `attackRange`: Distancia de ataque.
+- `rewards`: XP y Oro (min/max).
+- `lootTable`: Lista de items con probablidad de drop.
+
+#### 2. EnemyController.cs (NetworkBehaviour)
+Maneja el comportamiento:
+- **NavMeshAgent:** Calcula rutas en el Servidor.
+- **Estados:** Idle, Chase, Attack.
+- **Optimización Cliente:** Desactiva `NavMeshAgent` en clientes para evitar predicciones locales erróneas (empujones).
+- **Física:** Fuerza `Physics.IgnoreLayerCollision(Player, Enemy)` para movimiento fluido "estilo WoW".
+
+#### 3. NpcStats.cs
+Implementa `IEntityStats`.
+- **TakeDamage:** Recibe daño y registra al atacante (`lastAttacker`).
+- **Die:**
+  - Otorga XP directa al `lastAttacker`.
+  - Genera `LootBag` con Oro y Items según `NpcData`.
+  - Spawnea la bolsa en red (`NetworkServer.Spawn`).
+  - Destruye al NPC.
+
+#### 4. IEntityStats.cs (Interface)
+Permite al sistema de combate atacar genéricamente:
+```csharp
+public interface IEntityStats
+{
+    string EntityName { get; }
+    int CurrentHealth { get; }
+    int MaxHealth { get; }
+    void TakeDamage(int damage, PlayerStats attacker);
+}
+```
+`PlayerStats` y `NpcStats` implementan esta interface.
+
+### Configuración de Física y Movimiento
+
+**Problema:** NPCs empujando jugadores.
+**Solución:** Matriz de Colisiones + Ajuste de IA.
+
+1.  **Layers:** `Player` (6) y `Enemy` (7).
+2.  **Matriz:** Desactivar colisión entre Layer 6 y 7.
+3.  **NavMeshAgent:**
+    - `StoppingDistance = AttackRange` (frenar ANTES de chocar).
+    - `isStopped = true` durante el ataque.
+    - Desactivado en clientes (`OnStartClient`).
+
+---
+
+## 🚀 MEJORAS DE IA Y TARGETING (FASE 7.5)
+
+Se han implementado mejoras significativas en la inteligencia artificial y experiencia de usuario.
+
+### 1. Sistema de Leash (Correa)
+Para evitar que los enemigos persigan infinitamente:
+- **Max Chase Distance:** Configurable en `NpcData`.
+- **Comportamiento:** Si el NPC se aleja más de X metros de su punto de spawn, abandona la persecución.
+- **Retorno:** Vuelve a su posición original, invulnerable, y se cura al llegar.
+- **Anti-Griefing:** Si el objetivo entra en una **Zona Segura**, el NPC suelta el aggro inmediatamente.
+
+### 2. Sistema de Spawning Automático
+Nuevo script `NpcSpawner.cs`:
+- Hereda de `NetworkBehaviour` (Server Only).
+- **Pooling Básico:** Instancia un NPC al inicio.
+- **Auto-Respawn:** Detecta cuando el NPC muere o es destruido. Espera `respawnTime` y crea uno nuevo.
+- **Radio:** Spawnea en una posición aleatoria dentro de un radio configurado, ajustado al NavMesh.
+
+### 3. Tab Targeting & Visuales
+Mejoras en `TargetingSystem.cs`:
+- **Tab Cycling:** Tecla `TAB` alterna entre enemigos cercanos.
+- **Criterios de Selección:**
+    1.  Distancia (más cercanos primero).
+    2.  **Line of Sight:** Raycast para asegurar visibilidad.
+    3.  **Frustum Culling:** Solo selecciona enemigos visibles en la pantalla (cámara).
+- **Indicador Visual:** Prefab (círculo rojo) que aparece en los pies del objetivo seleccionado.
+    - Usa `NavMesh.SamplePosition` para pegarse perfectamente al terreno irregular.
+
+---
+
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
 
 ### Completado ✅
@@ -1406,14 +1502,15 @@ El sistema maneja la muerte del jugador, el dropeo de items y el respawn con sin
 - ✅ FASE 1: Player Setup & Cámara
 - ✅ FASE 2: Mundo, Zonas y NavMesh
 - ✅ FASE 3: Stats y Clases
-- ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands, Sistema de Currency)
-- ✅ FASE 5: Combate y Habilidades (Targeting, Cooldowns, Server Authority, SyncList Abilities, Safe Zones)
-- ✅ FASE 6: Muerte y Loot (LootBag, LootUI, Respawn Sync, Interacción Click Derecho)
+- ✅ FASE 4: Inventario
+- ✅ FASE 5: Combate y Habilidades
+- ✅ FASE 6: Muerte y Loot
+- ✅ FASE 7: NPCs e IA (Spawning, Aggro, Loot Tables, XP System, Physics Fixes)
+- ✅ FASE 7.5: IA Avanzada (Leashing, Spawners, Tab Targeting)
 
 ### Pendiente ⏳
-- ⏳ FASE 7: NPCs e IA
-- ⏳ FASE 8-9: Quests y Persistencia
-- ⏳ FASE 10: Polish y Build
+- ⏳ FASE 8: Quests y Persistencia (Renumerado)
+- ⏳ FASE 9: Polish y Build
 
 ### Issues Conocidos 🐛
 - Ninguno crítico.
@@ -1438,4 +1535,4 @@ El sistema maneja la muerte del jugador, el dropeo de items y el respawn con sin
 
 **Última actualización:** Enero 2026
 **Autor:** Sesión de desarrollo con Claude Code
-**Versión:** 1.2
+**Versión:** 1.4

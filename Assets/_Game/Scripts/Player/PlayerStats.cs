@@ -8,7 +8,7 @@ namespace Game.Player
     /// Maneja todos los stats del jugador (HP, Mana, Oro, Level, XP)
     /// Sincronizado en red con SyncVars
     /// </summary>
-    public class PlayerStats : NetworkBehaviour
+    public class PlayerStats : NetworkBehaviour, IEntityStats
     {
         [Header("Class Data")]
         [Tooltip("Datos de la clase del jugador (solo en servidor)")]
@@ -44,6 +44,12 @@ namespace Game.Player
 
         [SyncVar]
         public int xpToNextLevel = 100;
+
+        // IEntityStats Implementation
+        public string EntityName => gameObject.name;
+        public string ClassName => className;
+        public int CurrentHealth => currentHealth;
+        public int MaxHealth => maxHealth;
 
         [Header("Combat Stats")]
         [SyncVar]
@@ -262,10 +268,10 @@ namespace Game.Player
         /// Aplica daño al jugador
         /// </summary>
         [Server]
-        public void TakeDamage(int damageAmount)
+        public void TakeDamage(int damageAmount, PlayerStats attacker = null)
         {
             currentHealth = Mathf.Max(0, currentHealth - damageAmount);
-            Debug.Log($"[PlayerStats] Daño recibido: {damageAmount}. HP restante: {currentHealth}/{maxHealth}");
+            Debug.Log($"[PlayerStats] Daño recibido: {damageAmount} de {attacker?.name ?? "Desconocido"}. HP restante: {currentHealth}/{maxHealth}");
 
             if (currentHealth <= 0)
             {
