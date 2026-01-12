@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 1803658610825849891}
   - component: {fileID: 8887672228679079423}
   - component: {fileID: 4646868795097949971}
+  - component: {fileID: 2273616803454339926}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -249,6 +250,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   classData: {fileID: 0}
+  className: Unknown
   currentHealth: 100
   maxHealth: 100
   currentMana: 50
@@ -261,6 +263,22 @@ MonoBehaviour:
   hpRegenRate: 1
   manaRegenRate: 2
   characterRenderer: {fileID: 34637890435196327}
+--- !u!114 &2273616803454339926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b8e74358454849acaf1358f79801726, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  inventorySize: 20
 --- !u!1 &4482132918592436565
 GameObject:
   m_ObjectHideFlags: 0
