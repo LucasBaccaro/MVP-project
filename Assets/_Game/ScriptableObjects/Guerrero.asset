@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94199234a9b1840cc920697a9f6a3587, type: 3}
+  m_Name: Guerrero
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Core.ClassData
+  className: Guerrero
+  description: Un guerrero valiente...
+  classColor: {r: 0.4811321, g: 0.19547622, b: 0.070354216, a: 1}
+  baseHP: 150
+  baseMana: 30
+  baseDamage: 15
+  hpRegenRate: 2
+  manaRegenRate: 1
+  startingGold: 100
+  startingLevel: 1

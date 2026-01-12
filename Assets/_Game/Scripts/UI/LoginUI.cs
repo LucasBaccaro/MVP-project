@@ -13,6 +13,7 @@ namespace Game.UI
     {
         [Header("UI References")]
         [SerializeField] private TMP_InputField nameInputField;
+        [SerializeField] private TMP_Dropdown classDropdown;
         [SerializeField] private Button hostButton;
         [SerializeField] private Button clientButton;
         [SerializeField] private TMP_Text statusText;
@@ -26,6 +27,29 @@ namespace Game.UI
             if (networkManager == null)
             {
                 networkManager = FindFirstObjectByType<NetworkManagerMMO>();
+            }
+
+            // Configurar dropdown de clases
+            if (classDropdown != null && networkManager != null)
+            {
+                classDropdown.ClearOptions();
+                System.Collections.Generic.List<string> classNames = new System.Collections.Generic.List<string>();
+
+                foreach (var classData in networkManager.availableClasses)
+                {
+                    if (classData != null)
+                    {
+                        classNames.Add(classData.className);
+                    }
+                }
+
+                classDropdown.AddOptions(classNames);
+
+                // Cargar clase guardada si existe
+                if (PlayerPrefs.HasKey("SelectedClass"))
+                {
+                    classDropdown.value = PlayerPrefs.GetInt("SelectedClass");
+                }
             }
 
             // Configurar botones
@@ -45,7 +69,7 @@ namespace Game.UI
                 nameInputField.text = PlayerPrefs.GetString("PlayerName");
             }
 
-            UpdateStatus("Ingresa tu nombre para comenzar");
+            UpdateStatus("Selecciona tu clase e ingresa tu nombre");
         }
 
         private void OnHostButtonClicked()
@@ -58,15 +82,19 @@ namespace Game.UI
                 return;
             }
 
-            // Guardar nombre
+            // Guardar nombre y clase
             PlayerPrefs.SetString("PlayerName", playerName);
+            PlayerPrefs.SetInt("SelectedClass", classDropdown.value);
             PlayerPrefs.Save();
 
-            // Asignar nombre al NetworkManager
+            // Asignar al NetworkManager
             networkManager.playerName = playerName;
+            networkManager.selectedClassIndex = classDropdown.value;
+
+            string className = networkManager.availableClasses[classDropdown.value]?.className ?? "Unknown";
 
             // Iniciar como Host (Server + Client)
-            UpdateStatus($"Iniciando servidor como {playerName}...");
+            UpdateStatus($"Iniciando servidor como {playerName} ({className})...");
             networkManager.StartMMOServer();
         }
 
@@ -80,15 +108,19 @@ namespace Game.UI
                 return;
             }
 
-            // Guardar nombre
+            // Guardar nombre y clase
             PlayerPrefs.SetString("PlayerName", playerName);
+            PlayerPrefs.SetInt("SelectedClass", classDropdown.value);
             PlayerPrefs.Save();
 
-            // Asignar nombre al NetworkManager
+            // Asignar al NetworkManager
             networkManager.playerName = playerName;
+            networkManager.selectedClassIndex = classDropdown.value;
+
+            string className = networkManager.availableClasses[classDropdown.value]?.className ?? "Unknown";
 
             // Conectar como cliente
-            UpdateStatus($"Conectando como {playerName}...");
+            UpdateStatus($"Conectando como {playerName} ({className})...");
             networkManager.ConnectAsClient("localhost");
         }
 

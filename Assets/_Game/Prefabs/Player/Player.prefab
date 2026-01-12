@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 6981317795113004753}
   - component: {fileID: 1803658610825849891}
   - component: {fileID: 8887672228679079423}
+  - component: {fileID: 4646868795097949971}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -73,7 +74,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: a2685ca22cf09489fb206c1c5abff094, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -232,6 +233,34 @@ MonoBehaviour:
   syncInterval: 0
   isSafeZone: 0
   showDebugLogs: 1
+--- !u!114 &4646868795097949971
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1a7d22c05fbc43ea86d459502524f22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Player.PlayerStats
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  classData: {fileID: 0}
+  currentHealth: 100
+  maxHealth: 100
+  currentMana: 50
+  maxMana: 50
+  gold: 0
+  level: 1
+  currentXP: 0
+  xpToNextLevel: 100
+  damage: 10
+  hpRegenRate: 1
+  manaRegenRate: 2
+  characterRenderer: {fileID: 34637890435196327}
 --- !u!1 &4482132918592436565
 GameObject:
   m_ObjectHideFlags: 0

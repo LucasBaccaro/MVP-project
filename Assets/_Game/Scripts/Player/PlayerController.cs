@@ -65,27 +65,12 @@ namespace Game.Player
                 Debug.LogError("[PlayerController] cameraPrefab es NULL! Asigna el prefab de cámara en el Inspector.");
             }
 
-            // Color para distinguirnos (opcional)
-            MeshRenderer meshRenderer = GetComponentInChildren<MeshRenderer>();
-            if (meshRenderer != null)
-            {
-                meshRenderer.material.color = Color.blue;
-            }
-
             Debug.Log($"[PlayerController] Jugador local iniciado: {gameObject.name}");
         }
 
         private void Start()
         {
-            // Color diferente para otros jugadores
-            if (!isLocalPlayer)
-            {
-                MeshRenderer meshRenderer = GetComponentInChildren<MeshRenderer>();
-                if (meshRenderer != null)
-                {
-                    meshRenderer.material.color = Color.red;
-                }
-            }
+            // El color de clase se aplica desde PlayerStats
         }
 
         private void Update()
@@ -116,16 +101,6 @@ namespace Game.Player
                     rotationSpeed * Time.deltaTime
                 );
             }
-        }
-
-        private void OnGUI()
-        {
-            if (!isLocalPlayer) return;
-
-            // Mostrar info de debug en pantalla
-            GUI.Box(new Rect(10, 10, 200, 60), "Player Info");
-            GUI.Label(new Rect(20, 30, 180, 20), $"Speed: {speed}");
-            GUI.Label(new Rect(20, 50, 180, 20), $"Grounded: {characterController.isGrounded}");
         }
 
         private void OnDestroy()
