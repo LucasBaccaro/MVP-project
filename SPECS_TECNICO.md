@@ -1350,6 +1350,54 @@ El combate está prohibido en zonas seguras.
 
 ---
 
+## 💀 SISTEMA DE MUERTE Y LOOT (FASE 6)
+
+### Arquitectura de Muerte
+
+El sistema maneja la muerte del jugador, el dropeo de items y el respawn con sincronización de red.
+
+**Flujo de Muerte (Server-Side en `PlayerStats.cs`):**
+1. `TakeDamage` reduce la vida a <= 0.
+2. Se llama a `Die()` (Server).
+3. **Inventory Drop:**
+    - Se llama `PlayerInventory.ClearInventory()` para vaciar inventario y obtener items.
+    - Se instancia prefab `LootBag` en la posición de muerte.
+    - Se inicializa `LootBag` con los items dropeados.
+    - `NetworkServer.Spawn(lootBag)` para sincronizar en red.
+4. **Respawn:**
+    - Se busca `NetworkManager.singleton.GetStartPosition()`.
+    - Se mueve el transform del jugador al spawn.
+    - **Corrección Client Authority:** Se llama `TargetRespawn` (TargetRpc) para ordenar al cliente cambiar su posición inmediata (bypass de predicción).
+5. **Reset Stats:**
+    - HP y Mana se restauran al máximo.
+
+### Sistema de Loot
+
+**Componentes:**
+1. **LootBag.cs (NetworkBehaviour):**
+    - Contiene `SyncList<InventorySlot> items`.
+    - `CmdTakeItem(index)`: Permite a un jugador reclamar un item específico. Valida distancia.
+    - Auto-destrucción cuando se vacía (`NetworkServer.Destroy`).
+
+2. **LootUI.cs (Manager):**
+    - Muestra el contenido de la bolsa actual.
+    - Se suscribe a `LootBag.items.Callback` para actualizaciones en tiempo real.
+    - Gestiona el click derecho en items para lootear.
+
+**Interacción (PlayerController.cs):**
+- Detección de **Click Derecho** del mouse.
+- Raycast busca objetos con componente `LootBag`.
+- Si encuentra bolsa:
+    - Busca `LootUI` en escena (incluso si está inactivo con `FindFirstObjectByType`).
+    - Llama `LootUI.Open(lootBag)`.
+
+**UI de Loot (LootUI):**
+- Reutiliza `InventorySlotUI` para mostrar items.
+- Configura `OnRightClickAction` en los slots para llamar `CmdTakeItem` en lugar de usar el item.
+- Ventana se cierra automáticamente si la bolsa se destruye o el jugador se aleja.
+
+---
+
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
 
 ### Completado ✅
@@ -1360,15 +1408,15 @@ El combate está prohibido en zonas seguras.
 - ✅ FASE 3: Stats y Clases
 - ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands, Sistema de Currency)
 - ✅ FASE 5: Combate y Habilidades (Targeting, Cooldowns, Server Authority, SyncList Abilities, Safe Zones)
+- ✅ FASE 6: Muerte y Loot (LootBag, LootUI, Respawn Sync, Interacción Click Derecho)
 
 ### Pendiente ⏳
-- ⏳ FASE 6: Muerte y Loot
 - ⏳ FASE 7: NPCs e IA
 - ⏳ FASE 8-9: Quests y Persistencia
 - ⏳ FASE 10: Polish y Build
 
 ### Issues Conocidos 🐛
-- Ninguno crítico actualmente.
+- Ninguno crítico.
 
 ### Mejoras Futuras 💡
 1. Sistema de persistencia (guardar en archivo o DB)
@@ -1377,12 +1425,10 @@ El combate está prohibido en zonas seguras.
 4. Sistema de chat
 5. Mini-mapa
 6. Barras de progreso animadas para HP/Mana
-7. Loot al morir
 
 ---
 
 ## 🔗 REFERENCIAS Y DOCUMENTACIÓN
-
 - **Mirror Networking:** https://mirror-networking.gitbook.io/
 - **Unity AI Navigation:** https://docs.unity3d.com/Packages/com.unity.ai.navigation@2.0/
 - **Input System:** https://docs.unity3d.com/Packages/com.unity.inputsystem@1.7/
@@ -1392,4 +1438,4 @@ El combate está prohibido en zonas seguras.
 
 **Última actualización:** Enero 2026
 **Autor:** Sesión de desarrollo con Claude Code
-**Versión:** 1.1
+**Versión:** 1.2
