@@ -89,12 +89,12 @@ public class ItemCreator : EditorWindow
         woodenShield.armorBonus = 5;
         AssetDatabase.CreateAsset(woodenShield, $"{folderPath}/WoodenShield.asset");
 
-        // 5. Moneda de Oro
+        // 5. Moneda de Oro (Currency - NO va al inventario, se suma directo al oro)
         ItemData goldCoin = ScriptableObject.CreateInstance<ItemData>();
         goldCoin.itemID = 5;
         goldCoin.itemName = "Moneda de Oro";
-        goldCoin.description = "Una moneda de oro brillante.";
-        goldCoin.itemType = ItemType.Misc;
+        goldCoin.description = "Una moneda de oro brillante. Se suma automáticamente a tu oro.";
+        goldCoin.itemType = ItemType.Currency;
         goldCoin.isStackable = true;
         goldCoin.maxStackSize = 999;
         goldCoin.goldValue = 1;

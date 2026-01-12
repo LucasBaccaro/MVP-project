@@ -102,6 +102,7 @@ public class PlayerInventory : NetworkBehaviour
 
     /// <summary>
     /// Añade un item al inventario (busca slot vacío o apila)
+    /// Si el item es de tipo Currency, se suma directamente al oro del jugador
     /// </summary>
     [Command]
     public void CmdAddItem(int itemID, int amount)
@@ -117,6 +118,20 @@ public class PlayerInventory : NetworkBehaviour
         {
             Debug.LogWarning($"PlayerInventory: Item {itemID} no existe en la base de datos");
             return;
+        }
+
+        // CASO ESPECIAL: Currency (oro, monedas) se suma directo a PlayerStats
+        if (itemData.itemType == ItemType.Currency)
+        {
+            PlayerStats stats = GetComponent<PlayerStats>();
+            if (stats != null)
+            {
+                int goldToAdd = itemData.goldValue * amount;
+                stats.gold += goldToAdd;
+                Debug.Log($"PlayerInventory: Añadido {goldToAdd} oro ({amount}x {itemData.itemName})");
+                RpcShowGoldPickup(goldToAdd);
+            }
+            return; // No añadir al inventario
         }
 
         int remainingAmount = amount;
@@ -268,6 +283,13 @@ public class PlayerInventory : NetworkBehaviour
     {
         Debug.Log($"Efecto: {itemName} usado");
         // Aquí puedes reproducir sonido/partículas
+    }
+
+    [ClientRpc]
+    void RpcShowGoldPickup(int goldAmount)
+    {
+        Debug.Log($"+{goldAmount} oro recogido");
+        // Aquí puedes mostrar un texto flotante, sonido, partículas doradas, etc.
     }
 
     #endregion

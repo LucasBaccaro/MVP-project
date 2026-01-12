@@ -30,5 +30,6 @@ public enum ItemType
     Armor,          // Armaduras, escudos
     Quest,          // Items de quest
     Material,       // Materiales de crafteo
+    Currency,       // Monedas, oro (se suma directo a PlayerStats.gold)
     Misc            // Otros
 }

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemID: 5
   itemName: Moneda de Oro
-  description: Una moneda de oro brillante.
+  description: "Una moneda de oro brillante. Se suma autom\xE1ticamente a tu oro."
   icon: {fileID: 21300000, guid: 1aebb9ecb9d7045b6a6f3fec8798ae9b, type: 3}
   itemType: 5
   isStackable: 1

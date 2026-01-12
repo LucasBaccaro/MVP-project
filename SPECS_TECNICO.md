@@ -822,7 +822,13 @@ public class ItemData : ScriptableObject
 
 public enum ItemType
 {
-    Consumable, Weapon, Armor, Quest, Material, Misc
+    Consumable,     // Pociones, comida
+    Weapon,         // Espadas, hachas, arcos
+    Armor,          // Armaduras, escudos
+    Quest,          // Items de quest
+    Material,       // Materiales de crafteo
+    Currency,       // Monedas, oro (se suma directo a PlayerStats.gold, NO va al inventario)
+    Misc            // Otros
 }
 ```
 
@@ -888,11 +894,48 @@ public class PlayerInventory : NetworkBehaviour
 | Command | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `CmdSwapItems` | indexA, indexB | Intercambia dos slots |
-| `CmdAddItem` | itemID, amount | Añade item (apila si es posible) |
+| `CmdAddItem` | itemID, amount | Añade item (apila si es posible). **Si es Currency, suma directo a gold** |
 | `CmdRemoveItem` | slotIndex, amount | Remueve cantidad de un slot |
 | `CmdUseItem` | slotIndex | Usa consumible (restaura HP/Mana) |
 
 **IMPORTANTE:** Los Commands de Mirror **NO pueden tener parámetros opcionales**. Todos los parámetros deben ser explícitos.
+
+**Lógica especial de Currency:**
+
+`CmdAddItem()` detecta automáticamente items de tipo `Currency` y los maneja diferente:
+
+```csharp
+[Command]
+public void CmdAddItem(int itemID, int amount)
+{
+    ItemData itemData = ItemDatabase.Instance?.GetItem(itemID);
+
+    // CASO ESPECIAL: Currency (oro, monedas) se suma directo a PlayerStats
+    if (itemData.itemType == ItemType.Currency)
+    {
+        PlayerStats stats = GetComponent<PlayerStats>();
+        if (stats != null)
+        {
+            int goldToAdd = itemData.goldValue * amount;
+            stats.gold += goldToAdd;  // Suma directo al oro del jugador
+            RpcShowGoldPickup(goldToAdd);  // Feedback visual
+        }
+        return; // NO añadir al inventario
+    }
+
+    // Items normales: añadir al inventario...
+}
+```
+
+**ClientRpc para feedback:**
+```csharp
+[ClientRpc]
+void RpcShowGoldPickup(int goldAmount)
+{
+    Debug.Log($"+{goldAmount} oro recogido");
+    // Aquí se puede mostrar texto flotante, sonido, partículas doradas, etc.
+}
+```
 
 #### 4. InventoryUI.cs
 
@@ -1016,13 +1059,19 @@ public class ItemCreator : EditorWindow
 
 | ID | Nombre | Tipo | Stackable | Max Stack | Efecto |
 |----|--------|------|-----------|-----------|--------|
-| 1 | Poción de Salud | Consumable | ✅ | 20 | +50 HP |
-| 2 | Poción de Maná | Consumable | ✅ | 20 | +30 Mana |
-| 3 | Espada de Hierro | Weapon | ❌ | 1 | +10 Damage |
-| 4 | Escudo de Madera | Armor | ❌ | 1 | +5 Armor |
-| 5 | Moneda de Oro | Misc | ✅ | 999 | 1 Gold |
+| 1 | Poción de Salud | Consumable | ✅ | 20 | +50 HP (va al inventario) |
+| 2 | Poción de Maná | Consumable | ✅ | 20 | +30 Mana (va al inventario) |
+| 3 | Espada de Hierro | Weapon | ❌ | 1 | +10 Damage (va al inventario) |
+| 4 | Escudo de Madera | Armor | ❌ | 1 | +5 Armor (va al inventario) |
+| 5 | Moneda de Oro | **Currency** | ✅ | 999 | **+1 Gold (NO va al inventario, suma directo a PlayerStats.gold)** |
 
 **Creación:** Usar menú `MMO > Create Default Items` en Unity.
+
+**IMPORTANTE - Sistema de Currency:**
+- Los items de tipo **Currency** NO ocupan espacio en el inventario
+- Se suman automáticamente al stat `gold` del jugador (PlayerStats)
+- Fórmula: `gold += itemData.goldValue * amount`
+- Ejemplo: Recoger 50 monedas de oro → `gold += 1 * 50 = +50 oro`
 
 ### Configuración del UI
 
@@ -1070,19 +1119,37 @@ GameWorldCanvas
 
 ### Sincronización en Red
 
-**Flujo de añadir item:**
+**Flujo de añadir item (normal):**
 
 1. **Cliente:** Usuario presiona botón "Add Health Potion"
 2. **Cliente:** `ItemTester.AddHealthPotion()` llama `playerInventory.CmdAddItem(1, 1)`
 3. **Servidor:** Command ejecuta:
    - Valida itemID y cantidad
    - Busca ItemData en ItemDatabase
+   - **Verifica si es Currency** → Si NO, continúa
    - Si es apilable, busca stack existente con espacio
    - Si no, busca slot vacío
    - Modifica `SyncList<InventorySlot>`
 4. **Mirror:** Detecta cambio en SyncList y sincroniza a TODOS los clientes
 5. **Clientes:** Callback `OnInventoryUpdated` dispara evento `OnInventoryChanged`
 6. **UI:** `InventoryUI.RefreshUI()` actualiza todos los slots visuales
+
+**Flujo de añadir Currency (oro):**
+
+1. **Cliente:** Usuario presiona botón "Add Gold Coin" o recoge oro del suelo
+2. **Cliente:** `ItemTester.AddGoldCoin()` llama `playerInventory.CmdAddItem(5, 50)` (50 monedas)
+3. **Servidor:** Command ejecuta:
+   - Valida itemID y cantidad
+   - Busca ItemData en ItemDatabase
+   - **Detecta que es ItemType.Currency**
+   - Calcula: `goldToAdd = itemData.goldValue * amount` → `1 * 50 = 50`
+   - Suma directo a PlayerStats: `stats.gold += 50`
+   - Llama `RpcShowGoldPickup(50)` para feedback visual
+   - **RETURN** (NO añade al inventario)
+4. **Mirror:** Sincroniza el SyncVar `gold` de PlayerStats a todos los clientes
+5. **Clientes:** Hook `OnGoldChanged` actualiza el HUD
+6. **UI:** `PlayerHUD` muestra el nuevo valor de oro, inventario NO cambia
+7. **ClientRpc:** Todos los clientes ejecutan `RpcShowGoldPickup(50)` mostrando "+50 oro recogido"
 
 **Flujo de Drag & Drop:**
 
@@ -1112,7 +1179,12 @@ GameWorldCanvas
 - **Tecla T:** Añadir item de prueba (configurado en ItemTester)
 - **Drag & Drop:** Arrastrar items entre slots
 - **Click Derecho:** Usar consumible (pociones)
-- **Botones UI:** Añadir items específicos (testing)
+- **Botones UI Testing:**
+  - "Add Health Potion" → Añade poción al inventario
+  - "Add Mana Potion" → Añade poción al inventario
+  - "Add Iron Sword" → Añade espada al inventario
+  - "Add Wooden Shield" → Añade escudo al inventario
+  - **"Add Gold Coin"** → **Suma oro directo a PlayerStats.gold (NO va al inventario)**
 
 ### Problemas Comunes y Soluciones
 
@@ -1170,6 +1242,27 @@ using Game.Player;
 
 **Solución:** Es normal en esta fase. Los iconos se pueden añadir después en el Inspector de cada ItemData.
 
+#### Problema: El oro (GoldCoin) aparece en el inventario en lugar de sumarse al stat
+
+**Causa:** El ScriptableObject GoldCoin tiene `itemType: 5` (Misc) en lugar de `itemType: 5` (Currency)
+
+**Solución:**
+1. Abre `Assets/_Game/ScriptableObjects/Items/GoldCoin.asset` en el Inspector
+2. Cambia **Item Type** de `Misc` a `Currency`
+3. O elimina todos los items y vuelve a ejecutar `MMO > Create Default Items`
+
+**Nota:** El valor numérico de `Currency` en el enum es 5, igual que Misc si no actualizaste el código. Verifica que el enum `ItemType` en `ItemData.cs` tenga `Currency` antes de `Misc`.
+
+#### Problema: Añadir oro no suma al stat gold
+
+**Causa:** Falta referencia al componente PlayerStats en PlayerInventory
+
+**Solución:** Verificar que el prefab Player tenga ambos componentes:
+- `PlayerStats` (debe existir)
+- `PlayerInventory` (debe existir)
+
+Ambos deben estar en el mismo GameObject para que `GetComponent<PlayerStats>()` funcione.
+
 ---
 
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
@@ -1180,7 +1273,7 @@ using Game.Player;
 - ✅ FASE 1: Player Setup & Cámara
 - ✅ FASE 2: Mundo, Zonas y NavMesh
 - ✅ FASE 3: Stats y Clases
-- ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands)
+- ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands, Sistema de Currency)
 
 ### Pendiente ⏳
 - ⏳ FASE 5: Combate y Habilidades
