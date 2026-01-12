@@ -25,6 +25,7 @@ GameObject:
   - component: {fileID: 3082600444863830065}
   - component: {fileID: 3518176256834244742}
   - component: {fileID: 2935242607363892429}
+  - component: {fileID: 4970345510990265075}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -399,6 +400,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1cd1d2fbcae7b42a887fae45e4fd618f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.Player.TargetingUIConnector
+--- !u!114 &4970345510990265075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d8329c1916764f72b3e13af33457729, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Quests.PlayerQuests
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
 --- !u!1001 &5779480877219729888
 PrefabInstance:
   m_ObjectHideFlags: 0

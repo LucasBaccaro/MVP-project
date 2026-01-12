@@ -28,6 +28,9 @@ namespace Game.Player
         [Tooltip("Velocidad de rotación del jugador")]
         public float rotationSpeed = 10f;
 
+        [Tooltip("Distancia máxima para interactuar con NPCs y objetos")]
+        public float interactionRange = 5f;
+
         private void Awake()
         {
             // Obtener referencias si no están asignadas
@@ -115,7 +118,7 @@ namespace Game.Player
         }
 
         /// <summary>
-        /// Maneja la interacción con objetos en el mundo (Loot)
+        /// Maneja la interacción con objetos en el mundo (Loot, NPCs)
         /// </summary>
         private void HandleInteraction()
         {
@@ -129,14 +132,38 @@ namespace Game.Player
                 // Se asume que LootBag tiene collider
                 if (Physics.Raycast(ray, out RaycastHit hit, 100f))
                 {
-                    // Verificar si es un LootBag
-                    // Usamos GetComponentInParent por si clickeamos en una parte visual hija
+                    // Calcular distancia al objeto clickeado
+                    float distance = Vector3.Distance(transform.position, hit.point);
+
+                    // 1. Generic IInteractable (QuestGiver, etc.)
+                   Game.Core.IInteractable interactable = hit.collider.GetComponentInParent<Game.Core.IInteractable>();
+                   if (interactable != null)
+                   {
+                       // VALIDACIÓN DE DISTANCIA
+                       if (distance > interactionRange)
+                       {
+                           Debug.Log($"[PlayerController] Demasiado lejos para interactuar. Distancia: {distance:F1}m (máx: {interactionRange}m)");
+                           return;
+                       }
+
+                       interactable.Interact(gameObject);
+                       return; // Priority over LootBag
+                   }
+
+                    // 2. LootBag (Legacy specific check, could ideally be IInteractable too)
                     Game.Items.LootBag lootBag = hit.collider.GetComponentInParent<Game.Items.LootBag>();
-                    
+
                     if (lootBag != null)
                     {
+                        // VALIDACIÓN DE DISTANCIA
+                        if (distance > interactionRange)
+                        {
+                            Debug.Log($"[PlayerController] Demasiado lejos para lootear. Distancia: {distance:F1}m (máx: {interactionRange}m)");
+                            return;
+                        }
+
                         Debug.Log($"[PlayerController] LootBag clickeado. Buscando LootUI...");
-                        
+
                          // Buscar LootUI en la escena (incluso inactivo)
                         var lootUI = FindFirstObjectByType<Game.UI.LootUI>(FindObjectsInactive.Include);
                         if (lootUI != null)
@@ -147,7 +174,6 @@ namespace Game.Player
                         else
                         {
                             Debug.LogError("[PlayerController] ¡LootUI no encontrado en la escena! No se puede lootear.");
-                            // lootBag.CmdClaimLoot(); // REMOVIDO: Solo permitir loot vía UI
                         }
                     }
                 }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 55838937bbab14e9aaebfb81b03a1d24, type: 3}
   m_Name: CocoData
   m_EditorClassIdentifier: Assembly-CSharp::Game.NPCs.NpcData
-  npcName: Cocodrile
+  npcName: Cocodrilo
   moveSpeed: 3.5
   maxHealth: 100
   damage: 10

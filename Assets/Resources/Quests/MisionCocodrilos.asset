@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c612b885e90804bc68e5f560eb6b25b5, type: 3}
+  m_Name: MisionCocodrilos
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Quests.QuestData
+  questTitle: Caza de Cocodrilos
+  questDescription: Los cocodrilos son un peligro, desuyelos!!! A todos!! Bueno,
+    con tres estoy bien...
+  objectives:
+  - type: 0
+    targetName: Cocodrilo
+    requiredAmount: 3
+  xpReward: 100
+  goldReward: 60

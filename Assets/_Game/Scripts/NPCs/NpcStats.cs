@@ -4,6 +4,7 @@ using Game.Items;
 using Game.Player;
 using Game.Core;
 using System.Collections.Generic;
+using Game.Quests;
 
 namespace Game.NPCs
 {
@@ -58,6 +59,13 @@ namespace Game.NPCs
                 int xpReward = Random.Range(data.minXP, data.maxXP + 1);
                 lastAttacker.AddXP(xpReward);
                 Debug.Log($"[NpcStats] {data.npcName} murió. XP dada: {xpReward} a {lastAttacker.name}");
+
+                // 1.5 Notificar Misiones
+                PlayerQuests quests = lastAttacker.GetComponent<PlayerQuests>();
+                if (quests != null)
+                {
+                    quests.ServerOnEnemyKilled(data.npcName);
+                }
             }
 
             // 2. Generar Loot

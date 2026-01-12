@@ -1494,6 +1494,695 @@ Mejoras en `TargetingSystem.cs`:
 
 ---
 
+## 📜 SISTEMA DE QUESTS (FASE 8)
+
+### Arquitectura del Sistema de Quests
+
+El sistema de quests es **Server-Authoritative** con sincronización automática vía `SyncList`. Los clientes ven el progreso en tiempo real sin necesidad de RPCs manuales.
+
+**Componentes Clave:**
+1. **QuestData.cs:** ScriptableObject que define las quests.
+2. **QuestObjective.cs:** Struct que define los objetivos (Kill, Collect, etc.).
+3. **PlayerQuests.cs:** Maneja la lista de quests activas y el progreso.
+4. **QuestGiver.cs:** Componente para NPCs que ofrecen/entregan quests.
+5. **QuestGiverUI.cs:** Panel de interacción con 3 modos (Ofrecer/Recordatorio/Entregar).
+6. **QuestTrackerUI.cs:** HUD flotante que muestra progreso en tiempo real.
+7. **QuestLogUI.cs:** Diario detallado (tecla J).
+
+---
+
+### Scripts del Sistema
+
+#### 1. QuestObjective.cs (Struct)
+
+Define los tipos de objetivos:
+
+```csharp
+[System.Serializable]
+public struct QuestObjective
+{
+    public ObjectiveType type;      // Kill, Collect, Talk, etc.
+    public string targetName;       // Nombre del NPC/Item
+    public int requiredAmount;      // Cantidad necesaria
+}
+
+public enum ObjectiveType
+{
+    Kill,       // Matar enemigos
+    Collect,    // Recolectar items (futuro)
+    Talk,       // Hablar con NPCs (futuro)
+    Explore     // Descubrir zonas (futuro)
+}
+```
+
+**Nota:** MVP solo implementa `ObjectiveType.Kill`.
+
+#### 2. QuestData.cs (ScriptableObject)
+
+Define una quest completa:
+
+```csharp
+[CreateAssetMenu(fileName = "NewQuest", menuName = "Game/Quest Data")]
+public class QuestData : ScriptableObject
+{
+    [Header("Info")]
+    public string questTitle;
+    [TextArea] public string questDescription;
+
+    [Header("Objectives")]
+    public List<QuestObjective> objectives;
+
+    [Header("Rewards")]
+    public int xpReward;
+    public int goldReward;
+}
+```
+
+**Ubicación:** `Assets/Resources/Quests/` (CRÍTICO para el sistema de serialización)
+
+#### 3. QuestStatus (Struct en PlayerQuests.cs)
+
+**CRÍTICO:** Este struct tiene un diseño especial para networking.
+
+```csharp
+[System.Serializable]
+public struct QuestStatus
+{
+    // NO guardamos el ScriptableObject directamente (Mirror no lo serializa)
+    public string questName;      // Nombre del asset (ID)
+    public int currentAmount;     // Progreso actual
+    public bool isCompleted;      // Flag de completitud (futuro)
+
+    public QuestStatus(QuestData questData)
+    {
+        questName = questData.name;
+        currentAmount = 0;
+        isCompleted = false;
+    }
+
+    // Método helper para obtener el SO desde Resources
+    public QuestData GetQuestData()
+    {
+        string localQuestName = questName;  // Copia local (requisito de structs)
+        QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+        return System.Array.Find(allQuests, q => q.name == localQuestName);
+    }
+}
+```
+
+**Por Qué Este Diseño:**
+- Mirror **NO puede serializar** ScriptableObjects en SyncLists.
+- Solución: Guardar el **nombre del asset** (string) y cargarlo desde Resources cuando se necesite.
+- Patrón estándar en MMOs: "Serializar ID, Cargar Asset".
+
+#### 4. PlayerQuests.cs (NetworkBehaviour)
+
+Maneja la lista de quests activas del jugador.
+
+**SyncList:**
+```csharp
+public readonly SyncList<QuestStatus> activeQuests = new SyncList<QuestStatus>();
+```
+
+**Callback de Sincronización:**
+```csharp
+private void Awake()
+{
+    // CRÍTICO: Suscribirse al callback para actualizaciones automáticas
+    activeQuests.Callback += OnQuestListChanged;
+}
+
+private void OnQuestListChanged(SyncList<QuestStatus>.Operation op, int index,
+                                QuestStatus oldItem, QuestStatus newItem)
+{
+    if (!isLocalPlayer) return;
+    UpdateUI();  // Actualiza Tracker y Log automáticamente
+}
+```
+
+**Métodos Clave:**
+
+| Método | Tipo | Descripción |
+|--------|------|-------------|
+| `ServerOnEnemyKilled(npcName)` | `[Server]` | Llamado por `NpcStats` al morir. Incrementa progreso. |
+| `CmdAcceptQuest(questName)` | `[Command]` | Cliente pide aceptar una quest. |
+| `ServerAcceptQuest(quest)` | `[Server]` | Añade quest a la SyncList. |
+| `CmdCompleteQuest(index)` | `[Command]` | Cliente pide entregar una quest. |
+| `UpdateUI()` | Local | Actualiza Tracker y QuestLog. |
+
+**Flujo de Progreso:**
+
+```
+1. NPC muere → NpcStats.Die() llama lastAttacker.GetComponent<PlayerQuests>().ServerOnEnemyKilled()
+2. Servidor: Loop sobre activeQuests, busca match con npcName
+3. Servidor: Incrementa currentAmount, actualiza SyncList[index]
+4. Mirror: Detecta cambio en SyncList, sincroniza a todos los clientes
+5. Cliente: Callback OnQuestListChanged() se ejecuta automáticamente
+6. Cliente: UpdateUI() actualiza Tracker y QuestLog
+```
+
+**Validaciones:**
+- Comparación de nombres **case-insensitive** con `Trim` (tolerante a errores de setup).
+- Prevención de duplicados por nombre de quest.
+
+#### 5. QuestGiver.cs (MonoBehaviour + IInteractable)
+
+Componente para NPCs que ofrecen quests.
+
+```csharp
+public class QuestGiver : MonoBehaviour, IInteractable
+{
+    public List<QuestData> availableQuests;
+    public string InteractionPrompt => "Talk";
+
+    public void Interact(GameObject player)
+    {
+        // Buscar UI y abrir con la quest
+        QuestGiverUI ui = FindFirstObjectByType<QuestGiverUI>();
+        if (availableQuests.Count > 0)
+        {
+            ui.Open(this, availableQuests[0], player);
+        }
+    }
+}
+```
+
+**Configuración:**
+- Añadir componente a un GameObject NPC.
+- Asignar quests disponibles en `availableQuests`.
+- Requiere Collider para detección de clicks.
+
+---
+
+### UI del Sistema de Quests
+
+#### QuestGiverUI.cs
+
+Panel de interacción con **3 modos dinámicos** según el estado de la quest:
+
+**Modo 1: Ofrecer Quest Nueva**
+- Estado: Jugador NO tiene la quest.
+- UI: Título, Descripción, Recompensas, Status: "Nueva Quest" (verde).
+- Botones: **Aceptar** / **Decline**.
+
+**Modo 2: Recordatorio (En Progreso)**
+- Estado: Jugador tiene la quest pero NO está completa.
+- UI: Título, Descripción, Status: "En Progreso (2/3)" (naranja).
+- Botones: **Cerrar**.
+
+**Modo 3: Entregar Quest**
+- Estado: Jugador tiene la quest completa (3/3).
+- UI: Título, Descripción, Status: "¡Completa!" (verde).
+- Botones: **Completar** / **Cerrar**.
+
+**Lógica de Detección de Estado:**
+
+```csharp
+public void Open(QuestGiver npc, QuestData quest, GameObject player)
+{
+    // Obtener PlayerQuests del jugador
+    playerQuests = player.GetComponent<PlayerQuests>();
+
+    // Buscar quest en SyncList LOCAL
+    int questIndex = GetLocalQuestIndex(quest.name);
+    bool hasQuest = questIndex != -1;
+    bool isComplete = hasQuest && IsLocalQuestComplete(questIndex);
+
+    // Decidir qué botones mostrar
+    if (isComplete) { /* Modo 3: Entregar */ }
+    else if (hasQuest) { /* Modo 2: Recordatorio */ }
+    else { /* Modo 1: Ofrecer */ }
+}
+```
+
+**IMPORTANTE:** La lógica está en el UI (lado cliente), NO en el QuestGiver. Esto permite que funcione idénticamente en Host y Cliente.
+
+#### QuestTrackerUI.cs
+
+HUD flotante (derecha de la pantalla) que muestra progreso en tiempo real.
+
+```csharp
+public void UpdateTracker(QuestStatus[] activeQuests)
+{
+    StringBuilder sb = new StringBuilder();
+    sb.AppendLine("<b>QUESTS</b>");
+
+    foreach (var q in activeQuests)
+    {
+        QuestData questData = q.GetQuestData();
+        sb.AppendLine($"<color=orange>{questData.questTitle}</color>");
+        foreach(var obj in questData.objectives)
+        {
+            sb.AppendLine($"- {obj.targetName}: {q.currentAmount}/{obj.requiredAmount}");
+        }
+    }
+
+    trackerText.text = sb.ToString();
+}
+```
+
+**Actualización:** Se ejecuta automáticamente vía `OnQuestListChanged` callback.
+
+#### QuestLogUI.cs
+
+Diario detallado (tecla J) que muestra todas las quests activas con descripción completa.
+
+**Controles:**
+- Tecla **J**: Abrir/cerrar diario.
+
+**Contenido:**
+- Título (naranja, negrita)
+- Descripción completa
+- Objetivos con progreso
+- Recompensas (XP, Oro)
+
+---
+
+### Flujo Completo de Quest
+
+#### A. Aceptar Quest
+
+```
+1. Cliente: Click derecho en NPC (validación de distancia: 5m)
+2. Cliente: PlayerController.HandleInteraction() detecta IInteractable
+3. Cliente: QuestGiver.Interact() abre QuestGiverUI
+4. Cliente: QuestGiverUI.Open() lee SyncList LOCAL, decide mostrar "Nueva Quest"
+5. Usuario: Click en "Aceptar"
+6. Cliente: QuestGiverUI.OnAcceptButton() llama playerQuests.CmdAcceptQuest(questName)
+7. Servidor: CmdAcceptQuest() carga QuestData desde Resources
+8. Servidor: ServerAcceptQuest() añade QuestStatus a SyncList
+9. Mirror: Sincroniza SyncList a todos los clientes
+10. Clientes: Callback OnQuestListChanged() actualiza UI automáticamente
+```
+
+#### B. Progreso de Quest (Matar Enemigos)
+
+```
+1. Cliente: Ataca enemigo con habilidad
+2. Servidor: PlayerCombat valida y aplica daño
+3. Servidor: NpcStats.TakeDamage() registra lastAttacker
+4. Servidor: NpcStats.Die() llama lastAttacker.PlayerQuests.ServerOnEnemyKilled(npcName)
+5. Servidor: ServerOnEnemyKilled() loop sobre activeQuests
+6. Servidor: Encuentra match con npcName (case-insensitive)
+7. Servidor: Incrementa qs.currentAmount, actualiza activeQuests[i]
+8. Mirror: Sincroniza cambio en SyncList
+9. Cliente: Callback OnQuestListChanged() se ejecuta
+10. Cliente: UpdateUI() actualiza Tracker ("2/3") y QuestLog
+```
+
+#### C. Entregar Quest
+
+```
+1. Cliente: Quest en 3/3, click derecho en NPC
+2. Cliente: QuestGiverUI.Open() detecta isComplete = true
+3. Cliente: UI muestra "¡Completa!" con botón "Completar"
+4. Usuario: Click en "Completar"
+5. Cliente: QuestGiverUI.OnCompleteButton() llama playerQuests.CmdCompleteQuest(questIndex)
+6. Servidor: CmdCompleteQuest() valida progreso
+7. Servidor: Otorga recompensas (playerStats.AddXP(), AddGold())
+8. Servidor: Elimina quest de SyncList (RemoveAt)
+9. Mirror: Sincroniza eliminación
+10. Clientes: Callback actualiza UI, quest desaparece del Tracker
+```
+
+---
+
+### Sincronización en Red
+
+#### Problema: ScriptableObjects NO se Serializan
+
+**❌ Intento Inicial (ROTO):**
+```csharp
+public struct QuestStatus
+{
+    public QuestData data;  // ScriptableObject
+    public int currentAmount;
+}
+```
+
+**Resultado:**
+- Host: `data` tiene referencia local → Funciona.
+- Cliente: `data` llega como `null` → ROTO.
+
+**Por Qué:** Mirror serializa structs campo por campo. Los ScriptableObjects son **referencias a archivos**, no datos primitivos. Mirror no puede enviar referencias a archivos por la red.
+
+#### ✅ Solución: Patrón "Serializar ID, Cargar Asset"
+
+```csharp
+public struct QuestStatus
+{
+    public string questName;  // ✅ String se serializa perfectamente
+
+    public QuestData GetQuestData()
+    {
+        // Cargar desde Resources cuando se necesite
+        string localQuestName = questName;
+        QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+        return System.Array.Find(allQuests, q => q.name == localQuestName);
+    }
+}
+```
+
+**Flujo:**
+1. Servidor: Guarda `questName = "MisionCocodrilos"`.
+2. Servidor: Envía string por la red.
+3. Cliente: Recibe `"MisionCocodrilos"`.
+4. Cliente: Llama `GetQuestData()` cuando necesita los datos completos.
+5. Cliente: Carga el SO desde su carpeta local `Resources/Quests/`.
+6. Cliente: Ambos tienen el mismo asset (mismo build) → Funciona ✅.
+
+**Patrón Usado en MMOs Comerciales:**
+- WoW, FFXIV, etc. usan este mismo enfoque.
+- Servidor envía IDs (números o strings).
+- Cliente busca en su "base de datos local" de quests/items.
+
+#### SyncList Callback vs TargetRpc
+
+**❌ Enfoque Inicial (PROBLEMÁTICO):**
+```csharp
+[Server]
+void ServerOnEnemyKilled()
+{
+    activeQuests[i] = qs;  // Actualiza SyncList
+    TargetQuestProgressUpdated();  // Llama RPC inmediatamente
+}
+
+[TargetRpc]
+void TargetQuestProgressUpdated()
+{
+    UpdateUI();  // Lee SyncList... ¡pero aún tiene valor viejo!
+}
+```
+
+**Problema:** Mirror sincroniza SyncLists en el **siguiente frame de red**, no inmediatamente. El RPC llegaba antes de la sincronización.
+
+**✅ Solución: Callback Automático**
+```csharp
+private void Awake()
+{
+    activeQuests.Callback += OnQuestListChanged;
+}
+
+private void OnQuestListChanged(...)
+{
+    if (!isLocalPlayer) return;
+    UpdateUI();  // Se ejecuta DESPUÉS de que Mirror sincroniza
+}
+```
+
+**Ventaja:** Mirror garantiza que el callback se ejecuta después de actualizar la SyncList.
+
+---
+
+### Configuración del Sistema
+
+#### Estructura de Carpetas
+
+```
+Assets/
+├── Resources/
+│   └── Quests/                    # CRÍTICO: Quests deben estar aquí
+│       └── MisionCocodrilos.asset
+├── _Game/
+    ├── Scripts/
+    │   ├── Core/
+    │   │   └── IInteractable.cs
+    │   ├── Quests/
+    │   │   ├── QuestData.cs
+    │   │   ├── QuestObjective.cs
+    │   │   ├── PlayerQuests.cs
+    │   │   └── QuestGiver.cs
+    │   └── UI/
+    │       ├── QuestGiverUI.cs
+    │       ├── QuestTrackerUI.cs
+    │       └── QuestLogUI.cs
+```
+
+**IMPORTANTE:** Las quests deben estar en `Assets/Resources/Quests/` para que `Resources.LoadAll()` funcione.
+
+#### Componentes del Prefab Player
+
+```
+Player.prefab
+├── PlayerController
+├── PlayerStats
+├── PlayerInventory
+├── PlayerCombat
+├── TargetingSystem
+├── ZoneHandler
+└── PlayerQuests  ← NUEVO (Fase 8)
+```
+
+#### UI en GameWorld
+
+```
+GameWorldCanvas
+├── PlayerHUDPanel
+├── ZoneStatusText
+├── InventoryPanel
+├── LootPanel
+├── TargetFrame
+├── AbilityBar
+├── QuestTrackerUI           ← NUEVO (derecha)
+│   └── TrackerText (TMP)
+├── QuestLogPanel            ← NUEVO (centro, oculto por defecto)
+│   ├── Title
+│   ├── ContentText (TMP)
+│   └── CloseButton
+└── QuestGiverPanel          ← NUEVO (centro)
+    ├── TitleText (TMP)
+    ├── DescriptionText (TMP)
+    ├── RewardsText (TMP)
+    ├── StatusText (TMP)
+    ├── AcceptButton
+    ├── DeclineButton
+    ├── CompleteButton
+    └── CloseButton
+```
+
+**Referencias en Inspector:**
+
+**QuestTrackerUI:**
+- `trackerText` → TrackerText (TMP)
+
+**QuestLogUI:**
+- `panel` → QuestLogPanel
+- `contentText` → ContentText (TMP)
+
+**QuestGiverUI:**
+- `panel` → QuestGiverPanel
+- `titleText` → TitleText
+- `descriptionText` → DescriptionText
+- `rewardsText` → RewardsText
+- `statusText` → StatusText
+- `acceptButton` → AcceptButton (GameObject)
+- `declineButton` → DeclineButton (GameObject)
+- `completeButton` → CompleteButton (GameObject)
+- `closeButton` → CloseButton (GameObject)
+
+**Callbacks de Botones:**
+- AcceptButton.OnClick() → `QuestGiverUI.OnAcceptButton()`
+- DeclineButton.OnClick() → `QuestGiverUI.OnDeclineButton()`
+- CompleteButton.OnClick() → `QuestGiverUI.OnCompleteButton()`
+- CloseButton.OnClick() → `QuestGiverUI.OnCloseButton()`
+
+#### Crear una Quest
+
+1. Click derecho en `Assets/Resources/Quests/`
+2. Create > Game > Quest Data
+3. Configurar:
+   - **Quest Title:** "Matar Cocodrilos"
+   - **Quest Description:** "Los cocodrilos están atacando la aldea..."
+   - **Objectives:** Lista con 1 elemento:
+     - Type: Kill
+     - Target Name: "Cocodrilo" (debe coincidir con `NpcData.npcName`)
+     - Required Amount: 3
+   - **XP Reward:** 100
+   - **Gold Reward:** 50
+
+4. Configurar NPC QuestGiver:
+   - Crear GameObject con modelo
+   - Añadir `QuestGiver` component
+   - Añadir Collider (para clicks)
+   - Asignar quest en `Available Quests`
+
+---
+
+### Controles del Sistema
+
+| Tecla/Acción | Función |
+|--------------|---------|
+| **J** | Abrir/cerrar QuestLog (diario) |
+| **Click Derecho en NPC** | Interactuar (máx 5m de distancia) |
+| **Matar Enemigo** | Progreso automático si hay quest activa |
+
+---
+
+### Integración con Otros Sistemas
+
+#### Con Sistema de NPCs (NpcStats.cs)
+
+```csharp
+[Server]
+private void Die()
+{
+    // 1. Dar XP
+    lastAttacker.AddXP(xpReward);
+
+    // 2. NUEVO: Notificar sistema de quests
+    PlayerQuests quests = lastAttacker.GetComponent<PlayerQuests>();
+    if (quests != null)
+    {
+        quests.ServerOnEnemyKilled(data.npcName);
+    }
+
+    // 3. Generar loot
+    // ...
+}
+```
+
+#### Con Sistema de Interacción (PlayerController.cs)
+
+```csharp
+private void HandleInteraction()
+{
+    if (Input.GetMouseButtonDown(1))
+    {
+        Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f))
+        {
+            float distance = Vector3.Distance(transform.position, hit.point);
+
+            // PRIORIDAD 1: IInteractable (QuestGiver, etc.)
+            IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
+            if (interactable != null)
+            {
+                if (distance > interactionRange)
+                {
+                    Debug.Log("Demasiado lejos para interactuar");
+                    return;
+                }
+                interactable.Interact(gameObject);
+                return;
+            }
+
+            // PRIORIDAD 2: LootBag
+            // ...
+        }
+    }
+}
+```
+
+---
+
+### Problemas Comunes y Soluciones
+
+#### Error: "Quest not found in Resources/Quests"
+
+**Causa:** La quest no está en la carpeta correcta.
+
+**Solución:**
+1. Verifica que la quest esté en `Assets/Resources/Quests/`
+2. El nombre del archivo se usa como ID (ej: `MisionCocodrilos.asset`)
+
+#### Problema: Cliente ve "Nueva Quest" cuando debería ver "¡Completa!"
+
+**Causa:** ScriptableObject no se sincronizó (bug ya resuelto).
+
+**Solución:** Verificar que `QuestStatus` use `string questName` en lugar de `QuestData data`.
+
+#### Problema: Progreso no se actualiza al matar enemigos
+
+**Causa:** Nombre del NPC no coincide exactamente.
+
+**Solución:**
+1. Verificar que `NpcData.npcName` coincida con `QuestObjective.targetName`
+2. La comparación es case-insensitive y trimmed, pero debe ser el mismo texto base
+3. Ejemplo: "Cocodrilo" en quest y "Cocodrilo" en NPC (no "cocodrilo salvaje")
+
+#### Problema: No se puede interactuar con NPC desde lejos
+
+**Causa:** Validación de distancia funcionando correctamente.
+
+**Solución:** Acercarse al NPC (máx 5m). Configurable en `PlayerController.interactionRange`.
+
+#### Problema: QuestLog no se actualiza
+
+**Causa:** Bug ya resuelto (había un `if (!panel.activeSelf) return;`).
+
+**Solución:** Verificar que `QuestLogUI.UpdateLog()` NO tenga check de visibilidad del panel.
+
+---
+
+### Performance y Optimización
+
+#### GetQuestData() y Resources.LoadAll
+
+**Situación Actual (MVP):**
+```csharp
+public QuestData GetQuestData()
+{
+    QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+    return System.Array.Find(allQuests, q => q.name == localQuestName);
+}
+```
+
+**Impacto:**
+- **Para 1-10 quests:** Negligible (< 0.1ms)
+- **Para 100+ quests:** Podría ser lento (se carga el array cada vez)
+
+**Optimización Futura (Opcional):**
+```csharp
+private static QuestData[] cachedQuests;
+
+public QuestData GetQuestData()
+{
+    if (cachedQuests == null)
+    {
+        cachedQuests = Resources.LoadAll<QuestData>("Quests");
+    }
+
+    string localQuestName = questName;
+    return System.Array.Find(cachedQuests, q => q.name == localQuestName);
+}
+```
+
+**Recomendación:** No optimizar hasta tener 50+ quests.
+
+---
+
+### Mejoras Futuras
+
+#### Sistema de Quests
+
+1. **Múltiples Objetivos por Quest:**
+   - Actualmente: Solo se rastrea el primer objetivo.
+   - Futuro: Loop sobre todos los objetivos.
+
+2. **Otros Tipos de Objetivos:**
+   - `ObjectiveType.Collect` - Recoger items del inventario.
+   - `ObjectiveType.Talk` - Hablar con NPCs.
+   - `ObjectiveType.Explore` - Entrar en una zona.
+
+3. **Cadenas de Quests:**
+   - `QuestData.prerequisiteQuests` - Lista de quests requeridas.
+   - QuestGiver valida que estén completadas antes de ofrecer.
+
+4. **Items de Recompensa:**
+   - `QuestData.itemRewards` - Lista de ItemData.
+   - Al completar, añadir items al inventario.
+
+5. **Indicadores Visuales:**
+   - Signo de exclamación (!) sobre NPC con quest nueva.
+   - Signo de interrogación (?) sobre NPC con quest completa.
+   - Color amarillo si la quest está en progreso.
+
+6. **Abandono de Quests:**
+   - Botón "Abandonar" en QuestLog.
+   - `CmdAbandonQuest(index)` - Elimina de la lista sin recompensas.
+
+---
+
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
 
 ### Completado ✅
@@ -1507,9 +2196,10 @@ Mejoras en `TargetingSystem.cs`:
 - ✅ FASE 6: Muerte y Loot
 - ✅ FASE 7: NPCs e IA (Spawning, Aggro, Loot Tables, XP System, Physics Fixes)
 - ✅ FASE 7.5: IA Avanzada (Leashing, Spawners, Tab Targeting)
+- ✅ FASE 8: Sistema de Quests (Aceptar, Progreso, Entrega, UI Completo, Sincronización Robusta)
 
 ### Pendiente ⏳
-- ⏳ FASE 8: Quests y Persistencia (Renumerado)
+- ⏳ FASE 8.5: Persistencia (Guardar progreso de quests y stats)
 - ⏳ FASE 9: Polish y Build
 
 ### Issues Conocidos 🐛
@@ -1533,6 +2223,6 @@ Mejoras en `TargetingSystem.cs`:
 
 ---
 
-**Última actualización:** Enero 2026
+**Última actualización:** 12 de Enero 2026
 **Autor:** Sesión de desarrollo con Claude Code
-**Versión:** 1.4
+**Versión:** 1.5 (Fase 8: Sistema de Quests Completo)
