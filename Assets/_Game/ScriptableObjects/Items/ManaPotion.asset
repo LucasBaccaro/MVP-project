@@ -15,7 +15,7 @@ MonoBehaviour:
   itemID: 2
   itemName: "Poci\xF3n de Man\xE1"
   description: "Restaura 30 puntos de man\xE1."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 477805cdcd72e43a49172153345aed09, type: 3}
   itemType: 0
   isStackable: 1
   maxStackSize: 20

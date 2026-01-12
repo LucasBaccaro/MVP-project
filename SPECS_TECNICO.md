@@ -5,7 +5,7 @@
 **Networking:** Mirror (última versión)
 **Render Pipeline:** URP (Universal Render Pipeline)
 **Fecha de creación:** Enero 2026
-**Estado:** Fases 0-3 completadas (Login, Player, Zonas, Clases)
+**Estado:** Fases 0-4 completadas (Login, Player, Zonas, Clases, Inventario)
 
 ---
 
@@ -20,6 +20,7 @@ MVP-project/
 │   │   │   │   ├── Player.prefab       # Prefab del jugador con NetworkIdentity
 │   │   │   │   └── PlayerCamera.prefab # Cámara con CameraFollow
 │   │   │   ├── UI/
+│   │   │   │   └── InventorySlot.prefab # Slot del inventario con Drag & Drop
 │   │   │   ├── NPCs/
 │   │   │   └── Items/
 │   │   ├── Scenes/
@@ -38,15 +39,29 @@ MVP-project/
 │   │   │   ├── UI/
 │   │   │   │   ├── LoginUI.cs           # UI de login y selección de clase
 │   │   │   │   ├── ZoneUIManager.cs     # UI de indicador de zona
-│   │   │   │   └── PlayerHUD.cs         # HUD de stats del jugador
+│   │   │   │   ├── PlayerHUD.cs         # HUD de stats del jugador
+│   │   │   │   ├── InventoryUI.cs       # Manager del UI del inventario
+│   │   │   │   ├── InventorySlotUI.cs   # Slot individual con Drag & Drop
+│   │   │   │   └── ItemTester.cs        # Script de testing para items
 │   │   │   ├── Items/
+│   │   │   │   ├── ItemData.cs          # ScriptableObject de items
+│   │   │   │   ├── ItemDatabase.cs      # Base de datos de items (Singleton)
+│   │   │   │   └── PlayerInventory.cs   # Sistema de inventario (SyncList)
+│   │   │   ├── Editor/
+│   │   │   │   └── ItemCreator.cs       # Editor window para crear items
 │   │   │   ├── Combat/
 │   │   │   └── NPCs/
 │   │   └── ScriptableObjects/
 │   │       ├── Guerrero.asset          # Clase Guerrero (marrón)
 │   │       ├── Mago.asset              # Clase Mago (azul)
 │   │       ├── Cazador.asset           # Clase Cazador (verde)
-│   │       └── Sacerdote.asset         # Clase Sacerdote (amarillo)
+│   │       ├── Sacerdote.asset         # Clase Sacerdote (amarillo)
+│   │       └── Items/                  # Items del juego
+│   │           ├── HealthPotion.asset  # Poción de Salud
+│   │           ├── ManaPotion.asset    # Poción de Maná
+│   │           ├── IronSword.asset     # Espada de Hierro
+│   │           ├── WoodenShield.asset  # Escudo de Madera
+│   │           └── GoldCoin.asset      # Moneda de Oro
 │   ├── Mirror/                         # Framework de networking
 │   └── Settings/                       # Configuraciones de Unity
 ├── ProjectSettings/
@@ -758,6 +773,405 @@ INICIO
 
 ---
 
+## 🎒 SISTEMA DE INVENTARIO (FASE 4)
+
+### Arquitectura del Inventario
+
+El inventario utiliza **SyncList** de Mirror para sincronización automática entre servidor y clientes.
+
+**Flujo de datos:**
+```
+Cliente: Arrastra Item A → Slot B
+    ↓
+Cliente: Llama CmdSwapItems(indexA, indexB)
+    ↓
+Servidor: Valida y ejecuta swap en SyncList
+    ↓
+Mirror: Sincroniza cambios a TODOS los clientes
+    ↓
+Clientes: Hook actualiza UI automáticamente
+```
+
+### Scripts del Sistema
+
+#### 1. ItemData.cs (ScriptableObject)
+
+**Ubicación:** `Assets/_Game/Scripts/Items/ItemData.cs`
+
+Define las propiedades de un item:
+
+```csharp
+[CreateAssetMenu(fileName = "New Item", menuName = "MMO/Item Data")]
+public class ItemData : ScriptableObject
+{
+    public int itemID;              // ID único
+    public string itemName;
+    public string description;
+    public Sprite icon;
+
+    public ItemType itemType;       // Consumable, Weapon, Armor, etc.
+    public bool isStackable;
+    public int maxStackSize;
+
+    public int goldValue;
+    public int healthRestore;       // Para consumibles
+    public int manaRestore;
+    public int damageBonus;         // Para armas
+    public int armorBonus;          // Para armaduras
+}
+
+public enum ItemType
+{
+    Consumable, Weapon, Armor, Quest, Material, Misc
+}
+```
+
+#### 2. ItemDatabase.cs (Singleton)
+
+**Ubicación:** `Assets/_Game/Scripts/Items/ItemDatabase.cs`
+
+Base de datos centralizada con acceso rápido por ID:
+
+```csharp
+public class ItemDatabase : MonoBehaviour
+{
+    public static ItemDatabase Instance { get; private set; }
+    public List<ItemData> allItems;
+    private Dictionary<int, ItemData> itemDictionary;
+
+    public ItemData GetItem(int itemID);
+    public bool ItemExists(int itemID);
+    public List<ItemData> GetItemsByType(ItemType type);
+}
+```
+
+**Configuración en escena:**
+- GameObject `ItemDatabase` en escena `GameWorld`
+- Lista `allItems` con todos los ScriptableObjects de items
+
+#### 3. PlayerInventory.cs (NetworkBehaviour)
+
+**Ubicación:** `Assets/_Game/Scripts/Items/PlayerInventory.cs`
+
+**Struct InventorySlot:**
+```csharp
+[Serializable]
+public struct InventorySlot : IEquatable<InventorySlot>
+{
+    public int itemID;      // -1 = vacío
+    public int amount;
+}
+```
+
+**Componente principal:**
+```csharp
+public class PlayerInventory : NetworkBehaviour
+{
+    [SerializeField] private int inventorySize = 20;
+
+    // CRÍTICO: SyncList sincroniza automáticamente
+    public readonly SyncList<InventorySlot> inventory = new SyncList<InventorySlot>();
+
+    public event Action OnInventoryChanged;
+
+    // Callback cuando SyncList cambia
+    void OnInventoryUpdated(SyncList<InventorySlot>.Operation op, int index,
+                           InventorySlot oldItem, InventorySlot newItem)
+    {
+        OnInventoryChanged?.Invoke();  // Notificar al UI
+    }
+}
+```
+
+**Commands disponibles:**
+
+| Command | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `CmdSwapItems` | indexA, indexB | Intercambia dos slots |
+| `CmdAddItem` | itemID, amount | Añade item (apila si es posible) |
+| `CmdRemoveItem` | slotIndex, amount | Remueve cantidad de un slot |
+| `CmdUseItem` | slotIndex | Usa consumible (restaura HP/Mana) |
+
+**IMPORTANTE:** Los Commands de Mirror **NO pueden tener parámetros opcionales**. Todos los parámetros deben ser explícitos.
+
+#### 4. InventoryUI.cs
+
+**Ubicación:** `Assets/_Game/Scripts/UI/InventoryUI.cs`
+
+Manager del UI que se sincroniza con `PlayerInventory`:
+
+```csharp
+public class InventoryUI : MonoBehaviour
+{
+    public GameObject inventoryPanel;
+    public GameObject slotPrefab;
+    public Transform slotsContainer;
+    public Canvas mainCanvas;
+    public KeyCode toggleKey = KeyCode.I;
+
+    private List<InventorySlotUI> slotUIList;
+    private PlayerInventory playerInventory;
+
+    void TryInitialize()
+    {
+        // Buscar jugador local y suscribirse a cambios
+        playerInventory.OnInventoryChanged += RefreshUI;
+    }
+
+    void RefreshUI()
+    {
+        for (int i = 0; i < slotUIList.Count; i++)
+        {
+            slotUIList[i].UpdateSlot(playerInventory.inventory[i]);
+        }
+    }
+}
+```
+
+**Requiere namespace:** `using Game.Player;`
+
+#### 5. InventorySlotUI.cs
+
+**Ubicación:** `Assets/_Game/Scripts/UI/InventorySlotUI.cs`
+
+Slot individual con Drag & Drop:
+
+```csharp
+public class InventorySlotUI : MonoBehaviour,
+    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+{
+    public Image iconImage;
+    public TextMeshProUGUI amountText;
+    public Image backgroundImage;
+    public int slotIndex;
+
+    private GameObject draggedIcon;     // Copia visual durante drag
+    private CanvasGroup canvasGroup;    // Para transparencia
+
+    public void UpdateSlot(InventorySlot slot)
+    {
+        // Actualizar icono, cantidad, visibilidad
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        // Detectar slot destino y solicitar swap
+        InventorySlotUI targetSlot = ...;
+        inventoryUI.SwapSlots(slotIndex, targetSlot.slotIndex);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        // Click derecho para usar item
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            inventoryUI.UseItem(slotIndex);
+        }
+    }
+}
+```
+
+#### 6. ItemTester.cs (Testing)
+
+**Ubicación:** `Assets/_Game/Scripts/UI/ItemTester.cs`
+
+Script de utilidad para añadir items durante testing:
+
+```csharp
+public class ItemTester : MonoBehaviour
+{
+    public int testItemID = 1;
+    public int testAmount = 1;
+    public KeyCode addItemKey = KeyCode.T;
+
+    public void AddHealthPotion() => AddItemByID(1);
+    public void AddManaPotion() => AddItemByID(2);
+    public void AddIronSword() => AddItemByID(3);
+    // etc...
+}
+```
+
+**Requiere namespace:** `using Game.Player;`
+
+#### 7. ItemCreator.cs (Editor Script)
+
+**Ubicación:** `Assets/_Game/Scripts/Editor/ItemCreator.cs`
+
+Editor window para crear items desde Unity:
+
+```csharp
+public class ItemCreator : EditorWindow
+{
+    [MenuItem("MMO/Create Default Items")]
+    public static void CreateDefaultItems()
+    {
+        // Crea 5 items de ejemplo programáticamente
+    }
+}
+```
+
+### Items Creados (ScriptableObjects)
+
+**Ubicación:** `Assets/_Game/ScriptableObjects/Items/`
+
+| ID | Nombre | Tipo | Stackable | Max Stack | Efecto |
+|----|--------|------|-----------|-----------|--------|
+| 1 | Poción de Salud | Consumable | ✅ | 20 | +50 HP |
+| 2 | Poción de Maná | Consumable | ✅ | 20 | +30 Mana |
+| 3 | Espada de Hierro | Weapon | ❌ | 1 | +10 Damage |
+| 4 | Escudo de Madera | Armor | ❌ | 1 | +5 Armor |
+| 5 | Moneda de Oro | Misc | ✅ | 999 | 1 Gold |
+
+**Creación:** Usar menú `MMO > Create Default Items` en Unity.
+
+### Configuración del UI
+
+#### Prefab: InventorySlot.prefab
+
+**Ubicación:** `Assets/_Game/Prefabs/UI/InventorySlot.prefab`
+
+```
+InventorySlot (80x80)
+├── Components:
+│   ├── Image (background, gris oscuro)
+│   ├── Canvas Group (para drag transparencia)
+│   └── Inventory Slot UI (script)
+├── Icon (hijo)
+│   └── Image (sprite del item, desactivado por defecto)
+└── AmountText (hijo)
+    └── TextMeshPro (cantidad del stack)
+```
+
+#### UI en GameWorld
+
+**Jerarquía:**
+```
+GameWorldCanvas
+├── InventoryPanel (600x400, desactivado por defecto)
+│   └── SlotsContainer (Grid Layout Group)
+│       └── (slots se crean dinámicamente)
+├── TestingPanel (panel de testing, top-right)
+│   ├── Title ("TESTING")
+│   ├── BtnHealthPotion
+│   ├── BtnManaPotion
+│   ├── BtnIronSword
+│   ├── BtnWoodenShield
+│   └── BtnGoldCoin
+└── Components:
+    ├── Inventory UI (manager)
+    └── Item Tester (testing script)
+```
+
+**Referencias en InventoryUI:**
+- Inventory Panel: `InventoryPanel`
+- Slot Prefab: `InventorySlot.prefab`
+- Slots Container: `SlotsContainer`
+- Main Canvas: `GameWorldCanvas`
+
+### Sincronización en Red
+
+**Flujo de añadir item:**
+
+1. **Cliente:** Usuario presiona botón "Add Health Potion"
+2. **Cliente:** `ItemTester.AddHealthPotion()` llama `playerInventory.CmdAddItem(1, 1)`
+3. **Servidor:** Command ejecuta:
+   - Valida itemID y cantidad
+   - Busca ItemData en ItemDatabase
+   - Si es apilable, busca stack existente con espacio
+   - Si no, busca slot vacío
+   - Modifica `SyncList<InventorySlot>`
+4. **Mirror:** Detecta cambio en SyncList y sincroniza a TODOS los clientes
+5. **Clientes:** Callback `OnInventoryUpdated` dispara evento `OnInventoryChanged`
+6. **UI:** `InventoryUI.RefreshUI()` actualiza todos los slots visuales
+
+**Flujo de Drag & Drop:**
+
+1. **Cliente:** Usuario arrastra Item A sobre Slot B
+2. **Cliente:** `InventorySlotUI.OnEndDrag()` llama `inventoryUI.SwapSlots(indexA, indexB)`
+3. **Cliente:** `InventoryUI.SwapSlots()` llama `playerInventory.CmdSwapItems(indexA, indexB)`
+4. **Servidor:** Valida índices y ejecuta swap en SyncList
+5. **Mirror:** Sincroniza cambios
+6. **UI:** Se actualiza automáticamente
+
+**Flujo de usar item:**
+
+1. **Cliente:** Click derecho en poción
+2. **Cliente:** `InventorySlotUI.OnPointerClick()` llama `inventoryUI.UseItem(slotIndex)`
+3. **Cliente:** `InventoryUI.UseItem()` llama `playerInventory.CmdUseItem(slotIndex)`
+4. **Servidor:**
+   - Valida que sea consumible
+   - Obtiene stats del jugador (`PlayerStats`)
+   - Restaura HP/Mana
+   - Reduce cantidad del item (llama `CmdRemoveItem`)
+5. **ClientRpc:** Reproduce efecto visual/sonido
+6. **Mirror:** Sincroniza cambios de HP/Mana y cantidad de item
+
+### Controles
+
+- **Tecla I:** Abrir/cerrar inventario
+- **Tecla T:** Añadir item de prueba (configurado en ItemTester)
+- **Drag & Drop:** Arrastrar items entre slots
+- **Click Derecho:** Usar consumible (pociones)
+- **Botones UI:** Añadir items específicos (testing)
+
+### Problemas Comunes y Soluciones
+
+#### Error: "CmdAddItem cannot have optional parameters"
+
+**Causa:** Mirror no permite parámetros opcionales en Commands
+
+**Solución:**
+```csharp
+// ❌ MAL
+[Command]
+public void CmdAddItem(int itemID, int amount = 1)
+
+// ✅ BIEN
+[Command]
+public void CmdAddItem(int itemID, int amount)
+```
+
+#### Error: "PlayerController could not be found"
+
+**Causa:** Falta importar namespace en scripts de UI
+
+**Solución:** Añadir al inicio del script:
+```csharp
+using Game.Player;
+```
+
+#### Error: "ItemDatabase.Instance es null"
+
+**Causa:** No existe GameObject ItemDatabase en GameWorld
+
+**Solución:**
+1. Crear GameObject vacío llamado `ItemDatabase`
+2. Añadir componente `ItemDatabase`
+3. Asignar los 5 items a la lista `allItems`
+
+#### Problema: Los slots no se crean
+
+**Causa:** Referencias no asignadas en InventoryUI
+
+**Solución:** Verificar en Inspector que:
+- `slotPrefab` apunte a `InventorySlot.prefab`
+- `slotsContainer` apunte al objeto con GridLayoutGroup
+- `mainCanvas` apunte a GameWorldCanvas
+
+#### Problema: Drag & Drop no funciona
+
+**Causa:** Falta componente Canvas Group en el prefab
+
+**Solución:** Añadir `Canvas Group` al root de `InventorySlot.prefab`
+
+#### Problema: Items no tienen iconos
+
+**Causa:** Los ScriptableObjects no tienen sprites asignados
+
+**Solución:** Es normal en esta fase. Los iconos se pueden añadir después en el Inspector de cada ItemData.
+
+---
+
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
 
 ### Completado ✅
@@ -765,10 +1179,10 @@ INICIO
 - ✅ FASE 0.5: Login y selección de clase
 - ✅ FASE 1: Player Setup & Cámara
 - ✅ FASE 2: Mundo, Zonas y NavMesh
-- ✅ FASE 3 (Parcial): Stats y Clases
+- ✅ FASE 3: Stats y Clases
+- ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands)
 
 ### Pendiente ⏳
-- ⏳ FASE 4: Inventario (Drag & Drop)
 - ⏳ FASE 5: Combate y Habilidades
 - ⏳ FASE 6: Muerte y Loot
 - ⏳ FASE 7: NPCs e IA

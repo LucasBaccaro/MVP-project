@@ -15,7 +15,7 @@ MonoBehaviour:
   itemID: 3
   itemName: Espada de Hierro
   description: "Una espada simple pero efectiva. +10 de da\xF1o."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: b0bc7cad0c04a4c828ed8297535e919f, type: 3}
   itemType: 1
   isStackable: 0
   maxStackSize: 1

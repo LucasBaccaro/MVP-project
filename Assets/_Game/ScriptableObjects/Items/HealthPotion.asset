@@ -15,7 +15,7 @@ MonoBehaviour:
   itemID: 1
   itemName: "Poci\xF3n de Salud"
   description: Restaura 50 puntos de vida.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 26be4ee338dad4245aa49d4f652a33e4, type: 3}
   itemType: 0
   isStackable: 1
   maxStackSize: 20

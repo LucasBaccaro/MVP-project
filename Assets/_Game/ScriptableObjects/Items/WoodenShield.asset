@@ -15,7 +15,7 @@ MonoBehaviour:
   itemID: 4
   itemName: Escudo de Madera
   description: "Un escudo b\xE1sico. +5 de armadura."
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: d757aafe1be40438ea4de4fabed01449, type: 3}
   itemType: 2
   isStackable: 0
   maxStackSize: 1

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemID: 5
   itemName: Moneda de Oro
   description: Una moneda de oro brillante.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 1aebb9ecb9d7045b6a6f3fec8798ae9b, type: 3}
   itemType: 5
   isStackable: 1
   maxStackSize: 999
