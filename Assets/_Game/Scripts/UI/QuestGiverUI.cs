@@ -21,10 +21,15 @@ namespace Game.UI
         public GameObject completeButton;
         public GameObject closeButton;
 
+        [Header("Blocked Quest UI (Opcional)")]
+        [Tooltip("Mensaje adicional para quests bloqueadas. Si no se asigna, solo se usa statusText.")]
+        public TextMeshProUGUI blockedReasonText;
+
         // Estado actual
         private QuestGiver currentNpc;
         private QuestData currentQuest;
         private PlayerQuests playerQuests;
+        private bool isBlocked; // NUEVO: Indica si la quest está bloqueada
 
         private void Start()
         {
@@ -34,10 +39,12 @@ namespace Game.UI
         /// <summary>
         /// Abre el panel y decide qué mostrar según el estado de la quest
         /// </summary>
-        public void Open(QuestGiver npc, QuestData quest, GameObject player)
+        /// <param name="blocked">True si la quest está bloqueada por nivel</param>
+        public void Open(QuestGiver npc, QuestData quest, GameObject player, bool blocked)
         {
             currentNpc = npc;
             currentQuest = quest;
+            isBlocked = blocked;
 
             // Obtener componente de quests del jugador
             playerQuests = player.GetComponent<PlayerQuests>();
@@ -52,7 +59,86 @@ namespace Game.UI
             descriptionText.text = quest.questDescription;
             rewardsText.text = $"<color=yellow>Recompensas:</color>\n{quest.xpReward} XP\n{quest.goldReward} Oro";
 
-            // Decidir qué botones mostrar según el estado
+            // Determinar estado y botones
+            if (blocked)
+            {
+                ShowBlockedState(quest);
+            }
+            else
+            {
+                ShowNormalState(quest);
+            }
+
+            panel.SetActive(true);
+        }
+
+        /// <summary>
+        /// Abre el panel cuando no hay más quests disponibles (fin de cadena)
+        /// </summary>
+        public void OpenNoQuests(QuestGiver npc, GameObject player)
+        {
+            currentNpc = npc;
+            currentQuest = null;
+            isBlocked = false;
+
+            playerQuests = player.GetComponent<PlayerQuests>();
+
+            // Mostrar mensaje de "no más quests"
+            titleText.text = npc.npcName;
+            descriptionText.text = "Has completado todas las quests que tengo para ti por ahora. ¡Sigue entrenando y vuelve pronto, aventurero!";
+            rewardsText.text = "";
+            statusText.text = "<color=gray>Sin quests disponibles</color>";
+
+            // Ocultar mensaje de bloqueo si existe
+            if (blockedReasonText != null)
+            {
+                blockedReasonText.gameObject.SetActive(false);
+            }
+
+            // Solo botón cerrar
+            acceptButton.SetActive(false);
+            declineButton.SetActive(false);
+            completeButton.SetActive(false);
+            closeButton.SetActive(true);
+
+            panel.SetActive(true);
+
+            Debug.Log("[QuestGiverUI] Showing 'No quests available' message.");
+        }
+
+        /// <summary>
+        /// Muestra el estado de quest bloqueada por nivel
+        /// </summary>
+        private void ShowBlockedState(QuestData quest)
+        {
+            statusText.text = $"<color=red>Bloqueada - Requiere nivel {quest.requiredLevel}</color>";
+
+            if (blockedReasonText != null)
+            {
+                blockedReasonText.text = $"Vuelve cuando seas nivel {quest.requiredLevel}";
+                blockedReasonText.gameObject.SetActive(true);
+            }
+
+            // Solo botón cerrar
+            acceptButton.SetActive(false);
+            declineButton.SetActive(false);
+            completeButton.SetActive(false);
+            closeButton.SetActive(true);
+
+            Debug.Log($"[QuestGiverUI] Quest '{quest.questTitle}' está bloqueada (requiere nivel {quest.requiredLevel})");
+        }
+
+        /// <summary>
+        /// Muestra el estado normal de quest (Nueva, En Progreso, Completa)
+        /// </summary>
+        private void ShowNormalState(QuestData quest)
+        {
+            // Ocultar mensaje de bloqueo si existe
+            if (blockedReasonText != null)
+            {
+                blockedReasonText.gameObject.SetActive(false);
+            }
+
             string questID = quest.name;
 
             // IMPORTANTE: Acceder a la SyncList LOCAL del jugador
@@ -91,12 +177,10 @@ namespace Game.UI
                 // CASO 3: Quest nueva - Mostrar botón de aceptar
                 statusText.text = "<color=green>Nueva Quest</color>";
                 acceptButton.SetActive(true);
-                declineButton.SetActive(true);
+                declineButton.SetActive(false); // No permitir declinar en cadena lineal
                 completeButton.SetActive(false);
-                closeButton.SetActive(false);
+                closeButton.SetActive(true);
             }
-
-            panel.SetActive(true);
         }
 
         // ===== MÉTODOS HELPER LOCALES =====
@@ -175,9 +259,17 @@ namespace Game.UI
         private void Close()
         {
             panel.SetActive(false);
+
+            // Ocultar mensaje de bloqueo si está activo
+            if (blockedReasonText != null)
+            {
+                blockedReasonText.gameObject.SetActive(false);
+            }
+
             currentNpc = null;
             currentQuest = null;
             playerQuests = null;
+            isBlocked = false; // NUEVO: Resetear flag
         }
     }
 }

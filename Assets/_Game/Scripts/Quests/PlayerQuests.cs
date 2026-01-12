@@ -44,6 +44,14 @@ namespace Game.Quests
         [Header("State")]
         public readonly SyncList<QuestStatus> activeQuests = new SyncList<QuestStatus>();
 
+        // NUEVO: Persistencia de quests completadas (separadas por comas)
+        [SyncVar]
+        public string completedQuestsCSV = "";
+
+        // NUEVO: Índice de progreso en la cadena principal
+        [SyncVar]
+        public int currentChainIndex = 0;
+
         private PlayerStats playerStats;
         
         // UI References (Client Only)
@@ -91,6 +99,40 @@ namespace Game.Quests
             {
                 if (logUI != null) logUI.Toggle();
             }
+
+            // DEBUG: Tecla D para imprimir estado de quests
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                DebugPrintQuestState();
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Imprime el estado actual de quests del jugador
+        /// </summary>
+        private void DebugPrintQuestState()
+        {
+            Debug.Log("========== QUEST STATE DEBUG ==========");
+            Debug.Log($"Player Level: {playerStats.level}");
+            Debug.Log($"Completed Quests CSV: '{completedQuestsCSV}'");
+            Debug.Log($"Current Chain Index: {currentChainIndex}");
+            Debug.Log($"Active Quests Count: {activeQuests.Count}");
+
+            for (int i = 0; i < activeQuests.Count; i++)
+            {
+                QuestStatus qs = activeQuests[i];
+                Debug.Log($"  Active Quest {i}: {qs.questName} - Progress: {qs.currentAmount}");
+            }
+
+            // Listar todas las quests disponibles en Resources
+            QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+            Debug.Log($"Total Quests in Resources/Quests: {allQuests.Length}");
+            foreach (var q in allQuests.OrderBy(q => q.orderInChain))
+            {
+                Debug.Log($"  Quest: {q.name} - Title: {q.questTitle} - Order: {q.orderInChain} - ReqLevel: {q.requiredLevel}");
+            }
+
+            Debug.Log("======================================");
         }
 
         private void UpdateUI()
@@ -152,8 +194,167 @@ namespace Game.Quests
             }
         }
 
+        /// <summary>
+        /// Verifica si el jugador puede aceptar una quest específica (validación central)
+        /// NOTA: No es [Server] porque necesita ejecutarse en clientes para UI.
+        /// Solo lee SyncVars, no modifica estado.
+        /// </summary>
+        public bool CanAcceptQuest(QuestData quest, out string reason)
+        {
+            Debug.Log($"[PlayerQuests] CanAcceptQuest - Quest: {quest?.name}, PlayerLevel: {playerStats?.level}, CompletedQuests: '{completedQuestsCSV}'");
+
+            if (quest == null)
+            {
+                reason = "Quest inválida";
+                Debug.Log($"[PlayerQuests] Validation FAILED: Quest is null");
+                return false;
+            }
+
+            // 1. No duplicados
+            if (activeQuests.Any(q => q.questName == quest.name))
+            {
+                reason = "Ya tienes esta quest activa";
+                Debug.Log($"[PlayerQuests] Validation FAILED: Quest already active");
+                return false;
+            }
+
+            // 2. No completadas anteriormente
+            if (IsQuestCompleted(quest.name))
+            {
+                reason = "Ya completaste esta quest";
+                Debug.Log($"[PlayerQuests] Validation FAILED: Quest already completed");
+                return false;
+            }
+
+            // 3. Verificar nivel
+            if (playerStats.level < quest.requiredLevel)
+            {
+                reason = $"Requiere nivel {quest.requiredLevel}";
+                Debug.Log($"[PlayerQuests] Validation FAILED: Level too low ({playerStats.level} < {quest.requiredLevel})");
+                return false;
+            }
+
+            // 4. Verificar orden en cadena (quest previa completada)
+            if (quest.orderInChain > 0)
+            {
+                QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+                QuestData previousQuest = System.Array.Find(allQuests,
+                    q => q.orderInChain == quest.orderInChain - 1);
+
+                if (previousQuest != null && !IsQuestCompleted(previousQuest.name))
+                {
+                    reason = $"Primero debes completar: {previousQuest.questTitle}";
+                    Debug.Log($"[PlayerQuests] Validation FAILED: Previous quest not completed ({previousQuest.name})");
+                    return false;
+                }
+            }
+
+            reason = "";
+            Debug.Log($"[PlayerQuests] Validation PASSED - Quest can be accepted");
+            return true;
+        }
+
+        /// <summary>
+        /// Verifica si una quest fue completada (consulta el historial CSV)
+        /// </summary>
+        public bool IsQuestCompleted(string questName)
+        {
+            if (string.IsNullOrEmpty(completedQuestsCSV)) return false;
+            string[] completed = completedQuestsCSV.Split(',');
+            return System.Array.Exists(completed, q => q == questName);
+        }
+
+        /// <summary>
+        /// Marca una quest como completada (agrega al historial CSV)
+        /// </summary>
+        [Server]
+        private void MarkQuestCompleted(string questName)
+        {
+            if (IsQuestCompleted(questName)) return;
+
+            if (string.IsNullOrEmpty(completedQuestsCSV))
+            {
+                completedQuestsCSV = questName;
+            }
+            else
+            {
+                completedQuestsCSV += "," + questName;
+            }
+
+            Debug.Log($"[PlayerQuests] Quest completada agregada al historial: {questName}");
+        }
+
+        /// <summary>
+        /// Obtiene la próxima quest disponible en la cadena (que puede aceptar)
+        /// NOTA: No es [Server] porque necesita ejecutarse en clientes para UI.
+        /// </summary>
+        public QuestData GetNextAvailableQuest()
+        {
+            QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+
+            // Ordenar por orderInChain
+            var sortedQuests = System.Array.FindAll(allQuests, q => q != null)
+                .OrderBy(q => q.orderInChain)
+                .ToArray();
+
+            foreach (var quest in sortedQuests)
+            {
+                // Retornar la primera quest que pueda aceptar
+                if (CanAcceptQuest(quest, out _))
+                {
+                    return quest;
+                }
+            }
+
+            return null; // No hay más quests disponibles
+        }
+
+        /// <summary>
+        /// Obtiene la siguiente quest bloqueada por nivel (para mostrar en UI)
+        /// NOTA: No es [Server] porque necesita ejecutarse en clientes para UI.
+        /// </summary>
+        public QuestData GetNextBlockedQuest()
+        {
+            QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+
+            var sortedQuests = System.Array.FindAll(allQuests, q => q != null)
+                .OrderBy(q => q.orderInChain)
+                .ToArray();
+
+            foreach (var quest in sortedQuests)
+            {
+                // Buscar la primera quest que esté bloqueada solo por nivel
+                if (!IsQuestCompleted(quest.name) &&
+                    !activeQuests.Any(q => q.questName == quest.name) &&
+                    playerStats.level < quest.requiredLevel)
+                {
+                    // Verificar que la quest previa esté completa
+                    if (quest.orderInChain == 0 || IsQuestCompleted(GetPreviousQuestName(quest)))
+                    {
+                        return quest;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Helper: Obtiene el nombre de la quest anterior en la cadena
+        /// </summary>
+        private string GetPreviousQuestName(QuestData quest)
+        {
+            if (quest.orderInChain == 0) return null;
+
+            QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+            QuestData prev = System.Array.Find(allQuests,
+                q => q.orderInChain == quest.orderInChain - 1);
+
+            return prev?.name;
+        }
+
         [Command]
-        public void CmdAcceptQuest(string questName) 
+        public void CmdAcceptQuest(string questName)
         {
             // Load by Filename which acts as the ID
             QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
@@ -161,7 +362,15 @@ namespace Game.Quests
 
             if (quest != null)
             {
-                ServerAcceptQuest(quest);
+                // NUEVO: Usar validación antes de aceptar
+                if (CanAcceptQuest(quest, out string reason))
+                {
+                    ServerAcceptQuest(quest);
+                }
+                else
+                {
+                    Debug.LogWarning($"[PlayerQuests] No se puede aceptar quest '{quest.questTitle}': {reason}");
+                }
             }
             else
             {
@@ -197,10 +406,20 @@ namespace Game.Quests
             {
                if (qs.currentAmount >= questData.objectives[0].requiredAmount)
                {
+                   // Recompensas
                    playerStats.AddXP(questData.xpReward);
                    playerStats.AddGold(questData.goldReward);
 
                    Debug.Log($"[PlayerQuests] Completed {questData.questTitle}. Rewards: {questData.xpReward} XP, {questData.goldReward} Gold");
+
+                   // NUEVO: Marcar como completada (persistencia)
+                   MarkQuestCompleted(questData.name);
+
+                   // NUEVO: Actualizar progreso de cadena
+                   if (questData.orderInChain >= currentChainIndex)
+                   {
+                       currentChainIndex = questData.orderInChain + 1;
+                   }
 
                    activeQuests.RemoveAt(questIndex);
                    // El callback de SyncList actualizará el UI automáticamente

@@ -10,14 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c612b885e90804bc68e5f560eb6b25b5, type: 3}
-  m_Name: MisionCocodrilos
+  m_Name: Quest3_CrocodileSwamp
   m_EditorClassIdentifier: Assembly-CSharp::Game.Quests.QuestData
-  questTitle: Caza de Cocodrilos
-  questDescription: Los cocodrilos son un peligro, desuyelos!!! A todos!! Bueno,
-    con tres estoy bien...
+  questTitle: El Pantano Oscuro
+  questDescription: "Los cocodrilos provienen de lo profundo del pantano. Adentr\xE1\
+    te en su territorio y elimina 7 cocodrilos para reducir su poblaci\xF3n. Ten\
+    \ cuidado, son m\xE1s peligrosos en su h\xE1bitat natural."
+  requiredLevel: 5
+  orderInChain: 2
   objectives:
   - type: 0
     targetName: Cocodrilo
-    requiredAmount: 3
-  xpReward: 100
-  goldReward: 60
+    requiredAmount: 7
+  xpReward: 560
+  goldReward: 50
+  autoCalculateXP: 1
+  baseXPPerLevel: 80

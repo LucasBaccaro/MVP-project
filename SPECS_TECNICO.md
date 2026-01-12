@@ -1494,20 +1494,27 @@ Mejoras en `TargetingSystem.cs`:
 
 ---
 
-## 📜 SISTEMA DE QUESTS (FASE 8)
+## 📜 SISTEMA DE QUESTS - CADENA LINEAL (FASE 8)
 
 ### Arquitectura del Sistema de Quests
 
-El sistema de quests es **Server-Authoritative** con sincronización automática vía `SyncList`. Los clientes ven el progreso en tiempo real sin necesidad de RPCs manuales.
+El sistema de quests es **Server-Authoritative** con sincronización automática vía `SyncList`. Implementa una **cadena lineal story-driven** donde las quests se desbloquean progresivamente según el nivel del jugador.
+
+**Características Principales:**
+- 🔗 **Cadena Lineal**: Un solo NPC ofrece quests en secuencia obligatoria
+- 🔒 **Bloqueo por Nivel**: Quests bloqueadas se muestran con mensaje motivacional
+- ⚖️ **Auto-Balanceo XP**: Recompensas calculadas automáticamente según nivel requerido
+- 💾 **Persistencia**: Historial de quests completadas (CSV en SyncVar)
+- 🔄 **Validación Inteligente**: Sistema de 4 capas que previene saltos y duplicados
 
 **Componentes Clave:**
-1. **QuestData.cs:** ScriptableObject que define las quests.
-2. **QuestObjective.cs:** Struct que define los objetivos (Kill, Collect, etc.).
-3. **PlayerQuests.cs:** Maneja la lista de quests activas y el progreso.
-4. **QuestGiver.cs:** Componente para NPCs que ofrecen/entregan quests.
-5. **QuestGiverUI.cs:** Panel de interacción con 3 modos (Ofrecer/Recordatorio/Entregar).
-6. **QuestTrackerUI.cs:** HUD flotante que muestra progreso en tiempo real.
-7. **QuestLogUI.cs:** Diario detallado (tecla J).
+1. **QuestData.cs:** ScriptableObject con progresión (requiredLevel, orderInChain)
+2. **QuestObjective.cs:** Struct que define los objetivos (Kill, Collect, etc.)
+3. **PlayerQuests.cs:** Maneja progreso, validación y persistencia
+4. **QuestGiver.cs:** Lógica inteligente que determina qué quest mostrar
+5. **QuestGiverUI.cs:** Panel con 4 estados (Nueva/En Progreso/Completa/Bloqueada)
+6. **QuestTrackerUI.cs:** HUD flotante con progreso en tiempo real
+7. **QuestLogUI.cs:** Diario detallado (tecla J)
 
 ---
 
@@ -1539,7 +1546,7 @@ public enum ObjectiveType
 
 #### 2. QuestData.cs (ScriptableObject)
 
-Define una quest completa:
+Define una quest completa con progresión lineal:
 
 ```csharp
 [CreateAssetMenu(fileName = "NewQuest", menuName = "Game/Quest Data")]
@@ -1549,16 +1556,70 @@ public class QuestData : ScriptableObject
     public string questTitle;
     [TextArea] public string questDescription;
 
+    [Header("Chain Progression")]
+    [Tooltip("Nivel mínimo requerido para aceptar esta quest")]
+    public int requiredLevel = 1;
+
+    [Tooltip("Orden en la cadena (0 = primera quest, 1 = segunda, etc.)")]
+    public int orderInChain = 0;
+
     [Header("Objectives")]
     public List<QuestObjective> objectives;
 
     [Header("Rewards")]
     public int xpReward;
     public int goldReward;
+
+    [Header("Auto-Balance")]
+    [Tooltip("Si está activo, calcula XP automáticamente basado en requiredLevel")]
+    public bool autoCalculateXP = true;
+
+    [Tooltip("XP base por nivel para la fórmula automática")]
+    public int baseXPPerLevel = 80;
+
+    /// <summary>
+    /// Calcula XP recomendada según nivel requerido
+    /// Fórmula: baseXP * requiredLevel * (1 + (requiredLevel-1) * 0.1)
+    /// </summary>
+    public int CalculateRecommendedXP()
+    {
+        float multiplier = 1f + (requiredLevel - 1) * 0.1f;
+        return Mathf.RoundToInt(baseXPPerLevel * requiredLevel * multiplier);
+    }
+
+    private void OnValidate()
+    {
+        if (autoCalculateXP)
+        {
+            xpReward = CalculateRecommendedXP();
+        }
+    }
 }
 ```
 
 **Ubicación:** `Assets/Resources/Quests/` (CRÍTICO para el sistema de serialización)
+
+**Campos Nuevos Explicados:**
+
+| Campo | Tipo | Propósito |
+|-------|------|-----------|
+| `requiredLevel` | int | Nivel mínimo para aceptar la quest |
+| `orderInChain` | int | Posición en la secuencia (0, 1, 2, 3...) |
+| `autoCalculateXP` | bool | Activa cálculo automático de XP |
+| `baseXPPerLevel` | int | Base para la fórmula (default: 80) |
+
+**Fórmula de Balanceo XP:**
+```
+XP = baseXPPerLevel * requiredLevel * (1 + (requiredLevel - 1) * 0.1)
+
+Ejemplos:
+- Nivel 1: 80 * 1 * 1.0 = 80 XP
+- Nivel 3: 80 * 3 * 1.2 = 288 XP
+- Nivel 5: 80 * 5 * 1.4 = 560 XP
+- Nivel 8: 80 * 8 * 1.7 = 1088 XP
+```
+
+**OnValidate:** Se ejecuta automáticamente en el editor cuando cambias valores. Si `autoCalculateXP` está activo, recalcula `xpReward` cada vez que modificas `requiredLevel`.
 
 #### 3. QuestStatus (Struct en PlayerQuests.cs)
 
@@ -1597,11 +1658,19 @@ public struct QuestStatus
 
 #### 4. PlayerQuests.cs (NetworkBehaviour)
 
-Maneja la lista de quests activas del jugador.
+Maneja la lista de quests activas, validación de cadena y persistencia.
 
-**SyncList:**
+**SyncVars y SyncList:**
 ```csharp
 public readonly SyncList<QuestStatus> activeQuests = new SyncList<QuestStatus>();
+
+// NUEVO: Persistencia de quests completadas (separadas por comas)
+[SyncVar]
+public string completedQuestsCSV = "";  // "Quest1_Tutorial,Quest2_VillageInDanger"
+
+// NUEVO: Índice de progreso en la cadena principal
+[SyncVar]
+public int currentChainIndex = 0;
 ```
 
 **Callback de Sincronización:**
@@ -1624,11 +1693,72 @@ private void OnQuestListChanged(SyncList<QuestStatus>.Operation op, int index,
 
 | Método | Tipo | Descripción |
 |--------|------|-------------|
+| `CanAcceptQuest(quest, out reason)` | **NO [Server]** | **Validación de 4 capas** (nivel, orden, duplicados, historial). Debe ejecutarse en clientes para UI. |
+| `IsQuestCompleted(questName)` | Local | Consulta el historial CSV. |
+| `MarkQuestCompleted(questName)` | `[Server]` | Añade quest al historial CSV. |
+| `GetNextAvailableQuest()` | Local | Obtiene la siguiente quest que el jugador puede aceptar. |
+| `GetNextBlockedQuest()` | Local | Obtiene la siguiente quest bloqueada por nivel. |
 | `ServerOnEnemyKilled(npcName)` | `[Server]` | Llamado por `NpcStats` al morir. Incrementa progreso. |
-| `CmdAcceptQuest(questName)` | `[Command]` | Cliente pide aceptar una quest. |
+| `CmdAcceptQuest(questName)` | `[Command]` | Cliente pide aceptar una quest. **Usa validación**. |
 | `ServerAcceptQuest(quest)` | `[Server]` | Añade quest a la SyncList. |
-| `CmdCompleteQuest(index)` | `[Command]` | Cliente pide entregar una quest. |
+| `CmdCompleteQuest(index)` | `[Command]` | Cliente pide entregar una quest. **Marca en historial**. |
 | `UpdateUI()` | Local | Actualiza Tracker y QuestLog. |
+
+**CRÍTICO - Validación Central (CanAcceptQuest):**
+
+Sistema de **4 capas de validación** que previene exploits y mantiene coherencia:
+
+```csharp
+public bool CanAcceptQuest(QuestData quest, out string reason)
+{
+    // CAPA 1: Validar que la quest existe
+    if (quest == null)
+    {
+        reason = "Quest inválida";
+        return false;
+    }
+
+    // CAPA 2: No duplicados (quest ya activa)
+    if (activeQuests.Any(q => q.questName == quest.name))
+    {
+        reason = "Ya tienes esta quest activa";
+        return false;
+    }
+
+    // CAPA 3: No repetir quests completadas
+    if (IsQuestCompleted(quest.name))
+    {
+        reason = "Ya completaste esta quest";
+        return false;
+    }
+
+    // CAPA 4: Verificar nivel requerido
+    if (playerStats.level < quest.requiredLevel)
+    {
+        reason = $"Requiere nivel {quest.requiredLevel}";
+        return false;
+    }
+
+    // CAPA 5: Verificar orden en cadena (quest previa completada)
+    if (quest.orderInChain > 0)
+    {
+        QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+        QuestData previousQuest = System.Array.Find(allQuests,
+            q => q.orderInChain == quest.orderInChain - 1);
+
+        if (previousQuest != null && !IsQuestCompleted(previousQuest.name))
+        {
+            reason = $"Primero debes completar: {previousQuest.questTitle}";
+            return false;
+        }
+    }
+
+    reason = "";
+    return true;
+}
+```
+
+**POR QUÉ NO TIENE [Server]:** Este método se ejecuta en CLIENTES para determinar qué mostrar en el UI (botones, mensajes, etc.). Solo LEE SyncVars (que ya están sincronizadas), no modifica estado del servidor. El servidor valida nuevamente en `CmdAcceptQuest` como capa de seguridad.
 
 **Flujo de Progreso:**
 
@@ -1644,33 +1774,126 @@ private void OnQuestListChanged(SyncList<QuestStatus>.Operation op, int index,
 **Validaciones:**
 - Comparación de nombres **case-insensitive** con `Trim` (tolerante a errores de setup).
 - Prevención de duplicados por nombre de quest.
+- **Validación de cadena lineal**: No puedes saltar quests ni repetir completadas.
+- **Anti-Cheat**: Cliente valida para UX, servidor valida para seguridad.
 
 #### 5. QuestGiver.cs (MonoBehaviour + IInteractable)
 
-Componente para NPCs que ofrecen quests.
+Componente inteligente que determina **automáticamente** qué quest mostrar según el progreso del jugador.
 
 ```csharp
 public class QuestGiver : MonoBehaviour, IInteractable
 {
-    public List<QuestData> availableQuests;
+    [Header("Quest Chain")]
+    [Tooltip("Lista de quests en orden. El NPC determinará cuál mostrar según progreso del jugador")]
+    public List<QuestData> questChain;
+
+    [Header("NPC Info")]
+    public string npcName = "Guardián del Bosque";
+    [TextArea]
+    public string greetingText = "¡Aventurero! Tengo tareas para ti.";
+
     public string InteractionPrompt => "Talk";
 
     public void Interact(GameObject player)
     {
-        // Buscar UI y abrir con la quest
-        QuestGiverUI ui = FindFirstObjectByType<QuestGiverUI>();
-        if (availableQuests.Count > 0)
+        PlayerQuests playerQuests = player.GetComponent<PlayerQuests>();
+        if (playerQuests == null) return;
+
+        // Determinar qué quest mostrar
+        QuestData questToShow = DetermineQuestToShow(playerQuests);
+        QuestData blockedQuest = null;
+
+        if (questToShow == null)
         {
-            ui.Open(this, availableQuests[0], player);
+            // Si no hay quest disponible, buscar la siguiente bloqueada
+            blockedQuest = playerQuests.GetNextBlockedQuest();
         }
+
+        // Abrir UI
+        QuestGiverUI ui = FindFirstObjectByType<QuestGiverUI>(FindObjectsInactive.Include);
+        if (ui == null) return;
+
+        // SIEMPRE abrir el diálogo, con quest, bloqueada, o mensaje de fin
+        if (questToShow != null)
+        {
+            ui.Open(this, questToShow, player, false); // false = no bloqueada
+        }
+        else if (blockedQuest != null)
+        {
+            ui.Open(this, blockedQuest, player, true); // true = bloqueada
+        }
+        else
+        {
+            // No hay más quests - mostrar mensaje de fin
+            ui.OpenNoQuests(this, player);
+        }
+    }
+
+    /// <summary>
+    /// Determina cuál quest debe mostrar el NPC según el estado del jugador.
+    /// Prioridad: Quest activa > Quest nueva disponible > null
+    /// </summary>
+    private QuestData DetermineQuestToShow(PlayerQuests playerQuests)
+    {
+        // Ordenar quests por orderInChain
+        var sortedChain = questChain.OrderBy(q => q.orderInChain).ToList();
+
+        foreach (var quest in sortedChain)
+        {
+            if (quest == null) continue;
+
+            string questID = quest.name;
+
+            // PRIORIDAD 1: Quest activa (completa o en progreso)
+            int activeIndex = GetActiveQuestIndex(playerQuests, questID);
+            if (activeIndex != -1)
+            {
+                return quest; // Mostrar para entregar o ver progreso
+            }
+
+            // PRIORIDAD 2: Quest nueva que puede aceptar
+            if (playerQuests.CanAcceptQuest(quest, out string reason))
+            {
+                return quest;
+            }
+        }
+
+        // No hay quest disponible
+        return null;
+    }
+
+    /// <summary>
+    /// Helper: Busca el índice de una quest activa por nombre
+    /// </summary>
+    private int GetActiveQuestIndex(PlayerQuests pq, string questName)
+    {
+        for (int i = 0; i < pq.activeQuests.Count; i++)
+        {
+            if (pq.activeQuests[i].questName == questName)
+                return i;
+        }
+        return -1;
     }
 }
 ```
 
+**Lógica de Inteligencia:**
+
+El QuestGiver **NO ofrece ciegamente quests**, sino que analiza el estado del jugador:
+
+1. **Prioridad 1 (Activa)**: Si el jugador ya tiene una quest de esta cadena activa, mostrarla (para recordatorio o entrega).
+2. **Prioridad 2 (Nueva)**: Si el jugador puede aceptar una nueva quest (nivel correcto, quest previa completa), ofrecerla.
+3. **Prioridad 3 (Bloqueada)**: Si no hay quest disponible pero hay una bloqueada por nivel, mostrarla con mensaje motivacional.
+4. **Prioridad 4 (Fin)**: Si no hay más quests, mostrar mensaje de "No hay más quests disponibles".
+
+**Ventaja:** Un solo NPC puede manejar toda la cadena de quests. No necesitas crear múltiples NPCs o scripts complejos.
+
 **Configuración:**
 - Añadir componente a un GameObject NPC.
-- Asignar quests disponibles en `availableQuests`.
+- Asignar **todas las quests de la cadena** en `questChain` (en cualquier orden, el script las ordena).
 - Requiere Collider para detección de clicks.
+- El NPC automáticamente decide qué mostrar según el jugador.
 
 ---
 
@@ -1678,12 +1901,12 @@ public class QuestGiver : MonoBehaviour, IInteractable
 
 #### QuestGiverUI.cs
 
-Panel de interacción con **3 modos dinámicos** según el estado de la quest:
+Panel de interacción con **4 modos dinámicos** según el estado de la quest:
 
 **Modo 1: Ofrecer Quest Nueva**
-- Estado: Jugador NO tiene la quest.
+- Estado: Jugador NO tiene la quest y cumple requisitos.
 - UI: Título, Descripción, Recompensas, Status: "Nueva Quest" (verde).
-- Botones: **Aceptar** / **Decline**.
+- Botones: **Aceptar** / **Cerrar**.
 
 **Modo 2: Recordatorio (En Progreso)**
 - Estado: Jugador tiene la quest pero NO está completa.
@@ -1695,27 +1918,156 @@ Panel de interacción con **3 modos dinámicos** según el estado de la quest:
 - UI: Título, Descripción, Status: "¡Completa!" (verde).
 - Botones: **Completar** / **Cerrar**.
 
+**Modo 4: Quest Bloqueada (NUEVO)**
+- Estado: Jugador NO cumple nivel requerido.
+- UI: Título, Descripción, Recompensas, Status: "Bloqueada - Requiere nivel X" (rojo).
+- Mensaje adicional: "Vuelve cuando seas nivel X" (si blockedReasonText está asignado).
+- Botones: **Cerrar** (solo).
+
+**Modo 5: Sin Quests (NUEVO)**
+- Estado: Jugador completó toda la cadena.
+- UI: Nombre del NPC, Mensaje: "Has completado todas las quests..."
+- Botones: **Cerrar**.
+
 **Lógica de Detección de Estado:**
 
 ```csharp
-public void Open(QuestGiver npc, QuestData quest, GameObject player)
+/// <summary>
+/// Abre el panel y decide qué mostrar según el estado de la quest
+/// </summary>
+/// <param name="blocked">True si la quest está bloqueada por nivel</param>
+public void Open(QuestGiver npc, QuestData quest, GameObject player, bool blocked)
 {
-    // Obtener PlayerQuests del jugador
+    currentNpc = npc;
+    currentQuest = quest;
+    isBlocked = blocked;
+
     playerQuests = player.GetComponent<PlayerQuests>();
+    if (playerQuests == null) return;
+
+    // Datos básicos de la quest
+    titleText.text = quest.questTitle;
+    descriptionText.text = quest.questDescription;
+    rewardsText.text = $"<color=yellow>Recompensas:</color>\n{quest.xpReward} XP\n{quest.goldReward} Oro";
+
+    // Determinar estado y botones
+    if (blocked)
+    {
+        ShowBlockedState(quest);
+    }
+    else
+    {
+        ShowNormalState(quest);
+    }
+
+    panel.SetActive(true);
+}
+
+/// <summary>
+/// Muestra el estado de quest bloqueada por nivel
+/// </summary>
+private void ShowBlockedState(QuestData quest)
+{
+    statusText.text = $"<color=red>Bloqueada - Requiere nivel {quest.requiredLevel}</color>";
+
+    if (blockedReasonText != null)
+    {
+        blockedReasonText.text = $"Vuelve cuando seas nivel {quest.requiredLevel}";
+        blockedReasonText.gameObject.SetActive(true);
+    }
+
+    // Solo botón cerrar
+    acceptButton.SetActive(false);
+    declineButton.SetActive(false);
+    completeButton.SetActive(false);
+    closeButton.SetActive(true);
+}
+
+/// <summary>
+/// Muestra el estado normal de quest (Nueva, En Progreso, Completa)
+/// </summary>
+private void ShowNormalState(QuestData quest)
+{
+    // Ocultar mensaje de bloqueo si existe
+    if (blockedReasonText != null)
+    {
+        blockedReasonText.gameObject.SetActive(false);
+    }
 
     // Buscar quest en SyncList LOCAL
     int questIndex = GetLocalQuestIndex(quest.name);
     bool hasQuest = questIndex != -1;
     bool isComplete = hasQuest && IsLocalQuestComplete(questIndex);
 
-    // Decidir qué botones mostrar
-    if (isComplete) { /* Modo 3: Entregar */ }
-    else if (hasQuest) { /* Modo 2: Recordatorio */ }
-    else { /* Modo 1: Ofrecer */ }
+    if (isComplete)
+    {
+        // CASO 1: Quest completa - Mostrar botón de entregar
+        statusText.text = "<color=green>¡Completa!</color>";
+        acceptButton.SetActive(false);
+        declineButton.SetActive(false);
+        completeButton.SetActive(true);
+        closeButton.SetActive(true);
+    }
+    else if (hasQuest)
+    {
+        // CASO 2: Quest en progreso - Mostrar recordatorio
+        QuestStatus qs = playerQuests.activeQuests[questIndex];
+        QuestData questData = qs.GetQuestData();
+        int current = qs.currentAmount;
+        int required = (questData != null && questData.objectives.Count > 0)
+            ? questData.objectives[0].requiredAmount : 0;
+
+        statusText.text = $"<color=orange>En Progreso ({current}/{required})</color>";
+        acceptButton.SetActive(false);
+        declineButton.SetActive(false);
+        completeButton.SetActive(false);
+        closeButton.SetActive(true);
+    }
+    else
+    {
+        // CASO 3: Quest nueva - Mostrar botón de aceptar
+        statusText.text = "<color=green>Nueva Quest</color>";
+        acceptButton.SetActive(true);
+        declineButton.SetActive(false); // No permitir declinar en cadena lineal
+        completeButton.SetActive(false);
+        closeButton.SetActive(true);
+    }
+}
+
+/// <summary>
+/// Abre el panel cuando no hay más quests disponibles (fin de cadena)
+/// </summary>
+public void OpenNoQuests(QuestGiver npc, GameObject player)
+{
+    currentNpc = npc;
+    currentQuest = null;
+    isBlocked = false;
+
+    playerQuests = player.GetComponent<PlayerQuests>();
+
+    // Mostrar mensaje de "no más quests"
+    titleText.text = npc.npcName;
+    descriptionText.text = "Has completado todas las quests que tengo para ti por ahora. ¡Sigue entrenando y vuelve pronto, aventurero!";
+    rewardsText.text = "";
+    statusText.text = "<color=gray>Sin quests disponibles</color>";
+
+    // Ocultar mensaje de bloqueo si existe
+    if (blockedReasonText != null)
+    {
+        blockedReasonText.gameObject.SetActive(false);
+    }
+
+    // Solo botón cerrar
+    acceptButton.SetActive(false);
+    declineButton.SetActive(false);
+    completeButton.SetActive(false);
+    closeButton.SetActive(true);
+
+    panel.SetActive(true);
 }
 ```
 
-**IMPORTANTE:** La lógica está en el UI (lado cliente), NO en el QuestGiver. Esto permite que funcione idénticamente en Host y Cliente.
+**IMPORTANTE:** La lógica está en el UI (lado cliente), NO en el QuestGiver. Esto permite que funcione idénticamente en Host y Cliente. El parámetro `blocked` es pasado por QuestGiver después de evaluar el estado.
 
 #### QuestTrackerUI.cs
 
@@ -1986,25 +2338,75 @@ GameWorldCanvas
 - CompleteButton.OnClick() → `QuestGiverUI.OnCompleteButton()`
 - CloseButton.OnClick() → `QuestGiverUI.OnCloseButton()`
 
-#### Crear una Quest
+#### Ejemplo: Cadena de Quests del Proyecto
+
+**Ubicación:** `Assets/Resources/Quests/`
+
+El proyecto incluye 4 quests como ejemplo de cadena lineal:
+
+**Quest 1: "El Despertar del Héroe"**
+- **Archivo:** `Quest1_Tutorial.asset`
+- **Required Level:** 1
+- **Order in Chain:** 0
+- **Auto Calculate XP:** ✅ → XP: 80
+- **Gold Reward:** 10
+- **Objetivo:** Matar 3 Lobos
+- **Descripción:** "Bienvenido, aventurero. Los lobos salvajes están amenazando a los aldeanos. Elimina 3 lobos para demostrar tu valía."
+
+**Quest 2: "Aldea en Peligro"**
+- **Archivo:** `Quest2_VillageInDanger.asset`
+- **Required Level:** 3
+- **Order in Chain:** 1
+- **Auto Calculate XP:** ✅ → XP: 288
+- **Gold Reward:** 25
+- **Objetivo:** Matar 5 Cocodrilos
+- **Descripción:** "Los cocodrilos del pantano están atacando la aldea. Elimínalos antes de que causen más daño."
+
+**Quest 3: "El Pantano Oscuro"**
+- **Archivo:** `Quest3_CrocodileSwamp.asset`
+- **Required Level:** 5
+- **Order in Chain:** 2
+- **Auto Calculate XP:** ✅ → XP: 560
+- **Gold Reward:** 50
+- **Objetivo:** Matar 7 Cocodrilos
+- **Descripción:** "Los cocodrilos provienen de lo profundo del pantano. Adéntrate en su territorio y elimina 7 cocodrilos para reducir su población. Ten cuidado, son más peligrosos en su hábitat natural."
+
+**Quest 4: "Las Ruinas Antiguas"**
+- **Archivo:** `Quest4_AncientRuins.asset`
+- **Required Level:** 8
+- **Order in Chain:** 3
+- **Auto Calculate XP:** ✅ → XP: 1088
+- **Gold Reward:** 100
+- **Objetivo:** Matar 10 Cocodrilos
+- **Descripción:** "Las leyendas hablan de unas ruinas antiguas custodiadas por cocodrilos ancestrales. Solo los héroes más valientes se atreven a desafiarlos. Elimina 10 cocodrilos en las ruinas y conviértete en leyenda."
+
+#### Crear una Nueva Quest
 
 1. Click derecho en `Assets/Resources/Quests/`
 2. Create > Game > Quest Data
-3. Configurar:
-   - **Quest Title:** "Matar Cocodrilos"
-   - **Quest Description:** "Los cocodrilos están atacando la aldea..."
+3. Configurar campos básicos:
+   - **Quest Title:** Nombre visible
+   - **Quest Description:** Historia y contexto
+4. Configurar progresión:
+   - **Required Level:** Nivel mínimo (ej: 1, 3, 5, 8...)
+   - **Order in Chain:** Posición secuencial (0, 1, 2, 3...)
+   - **Auto Calculate XP:** ✅ (recomendado)
+   - **Base XP Per Level:** 80 (default, ajustar si necesario)
+   - **Gold Reward:** Configurar manualmente
+5. Configurar objetivos:
    - **Objectives:** Lista con 1 elemento:
      - Type: Kill
-     - Target Name: "Cocodrilo" (debe coincidir con `NpcData.npcName`)
+     - Target Name: "Cocodrilo" (debe coincidir **exactamente** con `NpcData.npcName`)
      - Required Amount: 3
-   - **XP Reward:** 100
-   - **Gold Reward:** 50
+6. Guardar asset
 
-4. Configurar NPC QuestGiver:
+7. **IMPORTANTE:** Verificar que `orderInChain` sea único y secuencial. No puede haber dos quests con el mismo orden.
+
+8. Configurar NPC QuestGiver:
    - Crear GameObject con modelo
    - Añadir `QuestGiver` component
    - Añadir Collider (para clicks)
-   - Asignar quest en `Available Quests`
+   - Asignar **TODAS** las quests de la cadena en `questChain` (el script las ordena automáticamente)
 
 ---
 
@@ -2013,8 +2415,74 @@ GameWorldCanvas
 | Tecla/Acción | Función |
 |--------------|---------|
 | **J** | Abrir/cerrar QuestLog (diario) |
+| **D** | **DEBUG: Imprimir estado de quests** (nivel, historial, activas, todas las disponibles) |
 | **Click Derecho en NPC** | Interactuar (máx 5m de distancia) |
 | **Matar Enemigo** | Progreso automático si hay quest activa |
+
+### Debug y Herramientas de Desarrollo
+
+#### Comando Debug (Tecla D)
+
+Implementado en `PlayerQuests.cs`, imprime información completa del estado de quests:
+
+```csharp
+private void Update()
+{
+    if (!isLocalPlayer) return;
+
+    // DEBUG: Tecla D para imprimir estado de quests
+    if (Input.GetKeyDown(KeyCode.D))
+    {
+        DebugPrintQuestState();
+    }
+}
+
+private void DebugPrintQuestState()
+{
+    Debug.Log("========== QUEST STATE DEBUG ==========");
+    Debug.Log($"Player Level: {playerStats.level}");
+    Debug.Log($"Completed Quests CSV: '{completedQuestsCSV}'");
+    Debug.Log($"Current Chain Index: {currentChainIndex}");
+    Debug.Log($"Active Quests Count: {activeQuests.Count}");
+
+    for (int i = 0; i < activeQuests.Count; i++)
+    {
+        QuestStatus qs = activeQuests[i];
+        Debug.Log($"  Active Quest {i}: {qs.questName} - Progress: {qs.currentAmount}");
+    }
+
+    // Listar todas las quests disponibles en Resources
+    QuestData[] allQuests = Resources.LoadAll<QuestData>("Quests");
+    Debug.Log($"Total Quests in Resources/Quests: {allQuests.Length}");
+    foreach (var q in allQuests.OrderBy(q => q.orderInChain))
+    {
+        Debug.Log($"  Quest: {q.name} - Title: {q.questTitle} - Order: {q.orderInChain} - ReqLevel: {q.requiredLevel}");
+    }
+
+    Debug.Log("======================================");
+}
+```
+
+**Cuándo Usar:**
+- Para verificar que las quests se están cargando correctamente
+- Para detectar duplicados de `orderInChain`
+- Para ver el historial de quests completadas
+- Para debugging de validaciones
+
+**Ejemplo de Output:**
+```
+========== QUEST STATE DEBUG ==========
+Player Level: 3
+Completed Quests CSV: 'Quest1_Tutorial'
+Current Chain Index: 1
+Active Quests Count: 0
+Total Quests in Resources/Quests: 4
+  Quest: Quest1_Tutorial - Title: El Despertar del Héroe - Order: 0 - ReqLevel: 1
+  Quest: Quest2_VillageInDanger - Title: Aldea en Peligro - Order: 1 - ReqLevel: 3
+  Quest: Quest3_CrocodileSwamp - Title: El Pantano Oscuro - Order: 2 - ReqLevel: 5
+  Quest: Quest4_AncientRuins - Title: Las Ruinas Antiguas - Order: 3 - ReqLevel: 8
+======================================
+```
 
 ---
 
@@ -2077,13 +2545,46 @@ private void HandleInteraction()
 
 ### Problemas Comunes y Soluciones
 
+#### 🚨 CRÍTICO: "Previous Quest Not Completed" con Quest Incorrecta
+
+**Síntoma:** Usuario completa Quest 1, sube a nivel 3, pero el NPC dice "Primero debes completar: [nombre de quest diferente]" en lugar de mostrar Quest 2.
+
+**Ejemplo Real (Bug Reportado):**
+```
+Player Level: 3
+Completed Quests CSV: 'Quest1_Tutorial'
+Total Quests in Resources/Quests: 5
+  Quest: MisionCocodrilos - Title: Caza de Cocodrilos - Order: 0 - ReqLevel: 1
+  Quest: Quest1_Tutorial - Title: El Despertar del Héroe - Order: 0 - ReqLevel: 1  ← DUPLICADO
+  Quest: Quest2_VillageInDanger - Title: Aldea en Peligro - Order: 1 - ReqLevel: 3
+```
+
+**Causa:** Existe un **asset de quest antiguo** con el mismo `orderInChain` que una quest nueva. Cuando el sistema valida Quest2 (order 1), busca la quest previa (order 0) y encuentra `MisionCocodrilos` en lugar de `Quest1_Tutorial`.
+
+**Diagnóstico:**
+1. Presionar **Tecla D** para debug
+2. Ver la lista de quests en Resources
+3. Buscar quests con el mismo `Order` (duplicados)
+
+**Solución:**
+1. Eliminar el archivo de quest antiguo: `Assets/Resources/Quests/MisionCocodrilos.asset`
+2. O cambiar su `orderInChain` a un valor único no usado
+3. Verificar con Tecla D que no haya duplicados
+
+**Prevención:**
+- Mantener `orderInChain` único y secuencial (0, 1, 2, 3...)
+- Usar el comando debug (D) regularmente durante desarrollo
+- Eliminar quests antiguas cuando creas nuevas versiones
+
+---
+
 #### Error: "Quest not found in Resources/Quests"
 
 **Causa:** La quest no está en la carpeta correcta.
 
 **Solución:**
 1. Verifica que la quest esté en `Assets/Resources/Quests/`
-2. El nombre del archivo se usa como ID (ej: `MisionCocodrilos.asset`)
+2. El nombre del archivo se usa como ID (ej: `Quest1_Tutorial.asset`)
 
 #### Problema: Cliente ve "Nueva Quest" cuando debería ver "¡Completa!"
 
@@ -2111,6 +2612,35 @@ private void HandleInteraction()
 **Causa:** Bug ya resuelto (había un `if (!panel.activeSelf) return;`).
 
 **Solución:** Verificar que `QuestLogUI.UpdateLog()` NO tenga check de visibilidad del panel.
+
+#### Problema: Quest bloqueada no muestra mensaje adicional
+
+**Causa:** Campo opcional `blockedReasonText` no asignado.
+
+**Solución:**
+1. En el Inspector de `QuestGiverUI`, el campo `blockedReasonText` es opcional
+2. Si no está asignado, solo se usa `statusText` (suficiente para MVP)
+3. Para mensaje adicional, crear un TextMeshProUGUI y asignarlo
+
+#### Problema: NPC no abre diálogo
+
+**Causa 1:** Distancia mayor a 5m.
+**Causa 2:** Collider no configurado en NPC.
+**Causa 3:** QuestGiver component no asignado.
+
+**Solución:**
+1. Acercarse al NPC
+2. Verificar que el GameObject tenga Collider
+3. Verificar que tenga componente `QuestGiver` con quests asignadas
+
+#### Problema: XP de quest no coincide con lo esperado
+
+**Causa:** `autoCalculateXP` desactivado o fórmula manual incorrecta.
+
+**Solución:**
+1. Abrir QuestData en Inspector
+2. Activar `autoCalculateXP`
+3. El campo `xpReward` se actualizará automáticamente al cambiar `requiredLevel`
 
 ---
 
@@ -2155,31 +2685,58 @@ public QuestData GetQuestData()
 
 #### Sistema de Quests
 
+**✅ Implementado en Fase 8:**
+- ✅ Cadena lineal con `orderInChain`
+- ✅ Bloqueo por nivel con UI motivacional
+- ✅ Auto-balanceo de XP
+- ✅ Persistencia de quests completadas (CSV)
+- ✅ Validación de 4 capas
+- ✅ Debug command (Tecla D)
+
+**🔮 Pendiente para Futuras Fases:**
+
 1. **Múltiples Objetivos por Quest:**
    - Actualmente: Solo se rastrea el primer objetivo.
-   - Futuro: Loop sobre todos los objetivos.
+   - Futuro: Loop sobre todos los objetivos en paralelo.
+   - Ejemplo: "Matar 3 lobos Y recolectar 5 hierbas".
 
 2. **Otros Tipos de Objetivos:**
    - `ObjectiveType.Collect` - Recoger items del inventario.
-   - `ObjectiveType.Talk` - Hablar con NPCs.
+   - `ObjectiveType.Talk` - Hablar con NPCs específicos.
    - `ObjectiveType.Explore` - Entrar en una zona.
+   - `ObjectiveType.Escort` - Proteger NPC hasta un punto.
 
-3. **Cadenas de Quests:**
-   - `QuestData.prerequisiteQuests` - Lista de quests requeridas.
-   - QuestGiver valida que estén completadas antes de ofrecer.
+3. **Cadenas Paralelas:**
+   - Actualmente: Solo una cadena lineal principal.
+   - Futuro: Múltiples cadenas independientes (ej: quest principal + side quests).
+   - Requiere: Sistema de categorías de quests.
 
 4. **Items de Recompensa:**
    - `QuestData.itemRewards` - Lista de ItemData.
-   - Al completar, añadir items al inventario.
+   - Al completar, añadir items al inventario automáticamente.
+   - Validar espacio en inventario antes de entregar.
 
-5. **Indicadores Visuales:**
-   - Signo de exclamación (!) sobre NPC con quest nueva.
-   - Signo de interrogación (?) sobre NPC con quest completa.
-   - Color amarillo si la quest está en progreso.
+5. **Indicadores Visuales (World Space):**
+   - Signo de exclamación (!) sobre NPC con quest nueva (amarillo).
+   - Signo de interrogación (?) sobre NPC con quest completa (dorado).
+   - Signo de exclamación gris si quest bloqueada.
+   - Billboard que mira siempre a la cámara.
 
-6. **Abandono de Quests:**
-   - Botón "Abandonar" en QuestLog.
+6. **Persistencia en Disco:**
+   - Actualmente: CSV en memoria (se pierde al cerrar).
+   - Futuro: Guardar en archivo JSON o base de datos.
+   - Cargar progreso al iniciar sesión.
+
+7. **Abandono de Quests (Opcional):**
+   - NO recomendado para cadena lineal.
+   - Si se implementa: Botón "Abandonar" en QuestLog.
    - `CmdAbandonQuest(index)` - Elimina de la lista sin recompensas.
+   - Permitir volver a aceptar después.
+
+8. **Diálogos con Ramas:**
+   - Sistema de diálogo con opciones múltiples.
+   - Diferentes respuestas del NPC según elecciones.
+   - Integración con sistema de quest.
 
 ---
 
@@ -2196,14 +2753,23 @@ public QuestData GetQuestData()
 - ✅ FASE 6: Muerte y Loot
 - ✅ FASE 7: NPCs e IA (Spawning, Aggro, Loot Tables, XP System, Physics Fixes)
 - ✅ FASE 7.5: IA Avanzada (Leashing, Spawners, Tab Targeting)
-- ✅ FASE 8: Sistema de Quests (Aceptar, Progreso, Entrega, UI Completo, Sincronización Robusta)
+- ✅ **FASE 8: Sistema de Quests - Cadena Lineal Completo**
+  - ✅ Cadena lineal story-driven con progresión por niveles
+  - ✅ Validación de 4 capas (nivel, orden, duplicados, historial)
+  - ✅ Auto-balanceo de XP (fórmula automática)
+  - ✅ Persistencia de quests completadas (CSV en SyncVar)
+  - ✅ UI con 4 estados (Nueva/En Progreso/Completa/Bloqueada)
+  - ✅ NPC inteligente que determina qué mostrar automáticamente
+  - ✅ Debug command (Tecla D)
+  - ✅ 4 quests de ejemplo configuradas
 
 ### Pendiente ⏳
-- ⏳ FASE 8.5: Persistencia (Guardar progreso de quests y stats)
+- ⏳ FASE 8.5: Persistencia en Disco (Guardar progreso de quests y stats)
 - ⏳ FASE 9: Polish y Build
 
 ### Issues Conocidos 🐛
 - Ninguno crítico.
+- ⚠️ **Advertencia:** Asegurar que no existan quests con `orderInChain` duplicados en Resources/Quests/. Usar comando debug (D) para verificar.
 
 ### Mejoras Futuras 💡
 1. Sistema de persistencia (guardar en archivo o DB)
@@ -2225,4 +2791,4 @@ public QuestData GetQuestData()
 
 **Última actualización:** 12 de Enero 2026
 **Autor:** Sesión de desarrollo con Claude Code
-**Versión:** 1.5 (Fase 8: Sistema de Quests Completo)
+**Versión:** 1.6 (Fase 8: Sistema de Quests - Cadena Lineal con Progresión Completa)
