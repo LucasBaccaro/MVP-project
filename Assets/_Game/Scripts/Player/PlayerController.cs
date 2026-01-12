@@ -59,6 +59,14 @@ namespace Game.Player
                 {
                     Debug.LogError("[PlayerController] El prefab de cámara no tiene componente CameraFollow!");
                 }
+
+                // Pasar la cámara al TargetingSystem
+                var targetingSystem = GetComponent<Game.Combat.TargetingSystem>();
+                if (targetingSystem != null && playerCamera != null)
+                {
+                    targetingSystem.SetCamera(playerCamera);
+                    Debug.Log("[PlayerController] Cámara asignada a TargetingSystem");
+                }
             }
             else
             {

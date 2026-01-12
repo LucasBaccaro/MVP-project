@@ -44,6 +44,10 @@ namespace Game.Core
         [Tooltip("Nivel inicial (normalmente 1)")]
         public int startingLevel = 1;
 
+        [Header("Abilities")]
+        [Tooltip("Habilidades de esta clase")]
+        public AbilityData[] classAbilities;
+
         /// <summary>
         /// Valida que los stats tengan valores razonables
         /// </summary>

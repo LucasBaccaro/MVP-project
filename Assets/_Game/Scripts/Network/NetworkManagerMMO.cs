@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Game.Core;
 using Game.Player;
+using Game.Combat;
 
 namespace Game.Network
 {
@@ -107,6 +108,14 @@ namespace Game.Network
                     else
                     {
                         Debug.LogError("[Server] PlayerStats component no encontrado en el prefab!");
+                    }
+
+                    // Asignar habilidades de la clase
+                    PlayerCombat combat = player.GetComponent<PlayerCombat>();
+                    if (combat != null && selectedClass.classAbilities != null && selectedClass.classAbilities.Length > 0)
+                    {
+                        combat.SetAbilities(selectedClass.classAbilities);
+                        Debug.Log($"[Server] {selectedClass.classAbilities.Length} habilidades asignadas a {finalPlayerName}");
                     }
                 }
                 else

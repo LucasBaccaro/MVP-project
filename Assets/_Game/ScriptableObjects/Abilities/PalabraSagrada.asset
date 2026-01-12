@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f79883ef23dcd40d0acba4c0e904aa69, type: 3}
+  m_Name: PalabraSagrada
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
+  abilityID: 7
+  abilityName: Palabra Sagrada
+  description: "Palabra de poder que da\xF1a a los enemigos"
+  icon: {fileID: 0}
+  manaCost: 15
+  cooldownTime: 4
+  baseDamage: 20
+  range: 8
+  abilityType: 0

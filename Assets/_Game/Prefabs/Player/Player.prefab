@@ -22,6 +22,9 @@ GameObject:
   - component: {fileID: 1200909131278671749}
   - component: {fileID: 5895794506218097523}
   - component: {fileID: 7258961575742029339}
+  - component: {fileID: 3082600444863830065}
+  - component: {fileID: 3518176256834244742}
+  - component: {fileID: 2935242607363892429}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -343,6 +346,61 @@ MonoBehaviour:
   syncInterval: 0
   clientAuthority: 1
   animator: {fileID: 1200909131278671749}
+--- !u!114 &3082600444863830065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff3251143f33c4f4f8d98f5274c6ba46, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Combat.TargetingSystem
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  targetableLayers:
+    serializedVersion: 2
+    m_Bits: 192
+  losBlockingLayers:
+    serializedVersion: 2
+    m_Bits: 8
+  maxTargetingDistance: 100
+  currentTarget: {fileID: 0}
+--- !u!114 &3518176256834244742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 672bcae8e788f46779e2b875b5f1db86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Combat.PlayerCombat
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  abilities:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+--- !u!114 &2935242607363892429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674033847373481553}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cd1d2fbcae7b42a887fae45e4fd618f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Game.Player.TargetingUIConnector
 --- !u!1001 &5779480877219729888
 PrefabInstance:
   m_ObjectHideFlags: 0

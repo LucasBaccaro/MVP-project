@@ -1265,6 +1265,91 @@ Ambos deben estar en el mismo GameObject para que `GetComponent<PlayerStats>()` 
 
 ---
 
+---
+
+## ⚔️ SISTEMA DE COMBATE (FASE 5)
+
+### Arquitectura de Combate
+
+El sistema de combate es **Server-Authoritative** (autoridad del servidor) con feedback inmediato en el cliente para la UI.
+
+**Componentes Clave:**
+1. **PlayerCombat.cs**: Lógica central de habilidades, cooldowns y validación.
+2. **TargetingSystem.cs**: Selección de objetivos (Raycast).
+3. **AbilityData.cs**: Define las habilidades (ScriptableObject).
+4. **TargetFrameUI**: Muestra la vida y datos del objetivo seleccionado.
+5. **AbilityBarUI**: Barra de habilidades con cooldowns visuales.
+
+### Scripts del Sistema
+
+#### 1. AbilityData.cs (ScriptableObject)
+Define las propiedades estáticas de una habilidad:
+- `abilityName`: Nombre
+- `manaCost`: Coste de maná
+- `cooldownTime`: Tiempo de recarga
+- `range`: Rango máximo
+- `damage`: Daño base (o curación)
+- `abilityType`: Damage, Heal, Buff
+- `icon`: Sprite para la UI
+
+#### 2. PlayerCombat.cs (NetworkBehaviour)
+Maneja la ejecución de habilidades.
+
+**SyncVars:**
+- `abilities`: `SyncList<AbilityData>` que sincroniza qué habilidades tiene el jugador.
+
+**Flujo de Uso de Habilidad:**
+1. **Cliente:** Presiona tecla (1-4) o click en botón
+2. **Cliente:** `TryUseAbility(index)` valida localmente:
+   - Cooldown (diccionario local)
+   - Maná suficiente
+   - Objetivo seleccionado (`TargetingSystem`)
+   - **Validación de Zona Segura** (no atacar desde/hacia zona segura)
+3. **Cliente:** Envía Command `CmdUseAbility(index, targetNetIdentity)`
+4. **Servidor:** `ValidateAbilityServer()` verifica todo nuevamente (Anti-Cheat):
+   - Cooldown, Maná, Distancia, Line of Sight (Raycast)
+   - **Validación de Zona Segura** (autoridad final)
+5. **Servidor:** Ejecuta la habilidad:
+   - Resta maná
+   - Aplica daño/curación al objetivo (`target.GetComponent<PlayerStats>().TakeDamage()`)
+   - Inicia Cooldown (`StartCooldown`)
+6. **Servidor:** Llama `RpcStartCooldown` y `RpcPlayAbilityEffect`
+7. **Clientes:**
+   - `RpcStartCooldown`: Inicia animación gris en UI
+   - `RpcPlayAbilityEffect`: Muestra partículas/sonidos
+
+#### 3. TargetingSystem.cs
+Maneja la selección de objetivos con el mouse.
+
+**Lógica de Selección:**
+- Usa `Camera.main` (o referencia pasada por `PlayerController`) para lanzar Raycast.
+- Filtra por LayerMask (Players, Enemies).
+- `GetComponentInParent<NetworkIdentity>()` para encontrar al jugador raíz.
+- Evita seleccionarse a sí mismo.
+- Evento `OnTargetChanged` notifica a la UI.
+
+**Corrección de Cámara:**
+El `PlayerController` pasa la referencia de la cámara inmeditamente después de instanciarla (ya que no es hija del jugador) mediante `targetingSystem.SetCamera()`.
+
+### UI de Combate
+
+#### TargetFrameUI
+Panel que aparece al seleccionar un objetivo.
+- Muestra Nombre, Clase y Barra de Vida.
+- Se conecta automáticamente mediante `TargetingUIConnector` (añadido dinámicamente si falta).
+
+#### AbilityBarUI
+Genera botones dinámicamente según las habilidades del jugador.
+- **Auto-Configuración:** Busca referencias (`Icon`, `CooldownText`) aunque no estén asignadas en prefab.
+- **Sincronización:** Escucha cambios en `PlayerCombat.abilities` (SyncList).
+
+### Validaciones de Seguridad (Safe Zones)
+El combate está prohibido en zonas seguras.
+- **Cliente:** Bloquea el intento de lanzar habilidad y muestra advertencia.
+- **Servidor:** Rechaza el comando si el atacante O el objetivo están en zona segura (`ZoneHandler.isSafeZone`).
+
+---
+
 ## 📝 NOTAS PARA PRÓXIMA SESIÓN
 
 ### Completado ✅
@@ -1274,25 +1359,25 @@ Ambos deben estar en el mismo GameObject para que `GetComponent<PlayerStats>()` 
 - ✅ FASE 2: Mundo, Zonas y NavMesh
 - ✅ FASE 3: Stats y Clases
 - ✅ FASE 4: Inventario (Drag & Drop, SyncList, Commands, Sistema de Currency)
+- ✅ FASE 5: Combate y Habilidades (Targeting, Cooldowns, Server Authority, SyncList Abilities, Safe Zones)
 
 ### Pendiente ⏳
-- ⏳ FASE 5: Combate y Habilidades
 - ⏳ FASE 6: Muerte y Loot
 - ⏳ FASE 7: NPCs e IA
 - ⏳ FASE 8-9: Quests y Persistencia
 - ⏳ FASE 10: Polish y Build
 
 ### Issues Conocidos 🐛
-- Ninguno en las fases completadas
+- Ninguno crítico actualmente.
 
 ### Mejoras Futuras 💡
 1. Sistema de persistencia (guardar en archivo o DB)
-2. Animaciones para personajes
-3. Efectos visuales de habilidades
+2. Animaciones para personajes (ataque, cast)
+3. Efectos visuales de habilidades (partículas reales)
 4. Sistema de chat
 5. Mini-mapa
 6. Barras de progreso animadas para HP/Mana
-7. Efectos de partículas al cambiar de zona
+7. Loot al morir
 
 ---
 
@@ -1307,4 +1392,4 @@ Ambos deben estar en el mismo GameObject para que `GetComponent<PlayerStats>()` 
 
 **Última actualización:** Enero 2026
 **Autor:** Sesión de desarrollo con Claude Code
-**Versión:** 1.0
+**Versión:** 1.1

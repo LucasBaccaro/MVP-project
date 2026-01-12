@@ -22,3 +22,6 @@ MonoBehaviour:
   manaRegenRate: 1
   startingGold: 100
   startingLevel: 1
+  classAbilities:
+  - {fileID: 11400000, guid: 0f6900a5a7bdc45139b6cc7ab54d3e97, type: 2}
+  - {fileID: 11400000, guid: 3170f1221f1dc462495ad1d8dc05af9f, type: 2}
