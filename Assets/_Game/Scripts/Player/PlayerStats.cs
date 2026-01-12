@@ -326,11 +326,80 @@ namespace Game.Player
             xpToNextLevel = level * 100;
         }
 
+        [Header("Death & Loot")]
+        [Tooltip("Prefab de la bolsa de loot")]
+        public GameObject lootBagPrefab;
+
         [Server]
         private void Die()
         {
-            Debug.Log($"[PlayerStats] Jugador ha muerto!");
-            // TODO: Implementar lógica de muerte (FASE 6)
+            Debug.Log($"[PlayerStats] Jugador {name} ha muerto!");
+
+            // 1. Obtener inventario y vaciarlo
+            PlayerInventory inventory = GetComponent<PlayerInventory>();
+            if (inventory != null && lootBagPrefab != null)
+            {
+                var droppedItems = inventory.ClearInventory();
+
+                if (droppedItems.Count > 0)
+                {
+                    // 2. Instanciar LootBag
+                    GameObject lootBag = Instantiate(lootBagPrefab, transform.position, Quaternion.identity);
+                    
+                    // 3. Inicializar LootBag con items
+                    Game.Items.LootBag lootBagScript = lootBag.GetComponent<Game.Items.LootBag>();
+                    if (lootBagScript != null)
+                    {
+                        lootBagScript.Initialize(droppedItems);
+                    }
+
+                    // 4. Spawnear en red
+                    NetworkServer.Spawn(lootBag);
+                }
+            }
+
+            // 5. Mover al punto de spawn
+            Transform spawnPoint = NetworkManager.singleton.GetStartPosition();
+            Vector3 respawnPos = spawnPoint != null ? spawnPoint.position : Vector3.zero;
+
+            // Mover en el servidor (para que otros lo vean)
+            if (TryGetComponent<CharacterController>(out CharacterController cc))
+            {
+                cc.enabled = false;
+                transform.position = respawnPos;
+                cc.enabled = true;
+            }
+            else
+            {
+                transform.position = respawnPos;
+            }
+
+            // 6. Restaurar stats
+            currentHealth = maxHealth;
+            currentMana = maxMana;
+
+            Debug.Log($"[PlayerStats] Jugador respawneado en {respawnPos}");
+
+            // 7. Forzar posición en el cliente dueño (CRÍTICO para Client Authority)
+            TargetRespawn(connectionToClient, respawnPos);
+        }
+
+        [TargetRpc]
+        private void TargetRespawn(NetworkConnection target, Vector3 position)
+        {
+            Debug.Log($"[PlayerStats] Recibido respawn en: {position}");
+            
+            // Necesario desactivar el CC para moverlo instantáneamente
+            if (TryGetComponent<CharacterController>(out CharacterController cc))
+            {
+                cc.enabled = false;
+                transform.position = position;
+                cc.enabled = true;
+            }
+            else
+            {
+                transform.position = position;
+            }
         }
 
         #endregion

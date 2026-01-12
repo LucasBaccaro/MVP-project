@@ -81,11 +81,14 @@ namespace Game.Player
             // El color de clase se aplica desde PlayerStats
         }
 
+
+
         private void Update()
         {
             if (!isLocalPlayer) return; // Solo procesar input local
 
             HandleMovement();
+            HandleInteraction();
         }
 
         private void HandleMovement()
@@ -108,6 +111,46 @@ namespace Game.Player
                     targetRotation,
                     rotationSpeed * Time.deltaTime
                 );
+            }
+        }
+
+        /// <summary>
+        /// Maneja la interacción con objetos en el mundo (Loot)
+        /// </summary>
+        private void HandleInteraction()
+        {
+            // Click derecho para interactuar
+            if (Input.GetMouseButtonDown(1))
+            {
+                if (playerCamera == null) return;
+
+                Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+                // Usamos un layer mask para detectar objetos interactuables o default
+                // Se asume que LootBag tiene collider
+                if (Physics.Raycast(ray, out RaycastHit hit, 100f))
+                {
+                    // Verificar si es un LootBag
+                    // Usamos GetComponentInParent por si clickeamos en una parte visual hija
+                    Game.Items.LootBag lootBag = hit.collider.GetComponentInParent<Game.Items.LootBag>();
+                    
+                    if (lootBag != null)
+                    {
+                        Debug.Log($"[PlayerController] LootBag clickeado. Buscando LootUI...");
+                        
+                         // Buscar LootUI en la escena (incluso inactivo)
+                        var lootUI = FindFirstObjectByType<Game.UI.LootUI>(FindObjectsInactive.Include);
+                        if (lootUI != null)
+                        {
+                            Debug.Log($"[PlayerController] LootUI encontrado: {lootUI.name}. Abriendo...");
+                            lootUI.Open(lootBag);
+                        }
+                        else
+                        {
+                            Debug.LogError("[PlayerController] ¡LootUI no encontrado en la escena! No se puede lootear.");
+                            // lootBag.CmdClaimLoot(); // REMOVIDO: Solo permitir loot vía UI
+                        }
+                    }
+                }
             }
         }
 

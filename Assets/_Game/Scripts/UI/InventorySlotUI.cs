@@ -141,14 +141,26 @@ public class InventorySlotUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     #region Click (Usar Item)
 
+    // Action para customizar el comportamiento del click derecho (ej: Loot)
+    public System.Action<int> OnRightClickAction;
+
     public void OnPointerClick(PointerEventData eventData)
     {
-        // Click derecho para usar item
+        // Click derecho
         if (eventData.button == PointerEventData.InputButton.Right)
         {
             if (currentSlot.itemID >= 0)
             {
-                inventoryUI.UseItem(slotIndex);
+                // Si hay una acción custom definida (ej: LootUI), usarla
+                if (OnRightClickAction != null)
+                {
+                    OnRightClickAction.Invoke(slotIndex);
+                }
+                // Si no, usar la lógica por defecto de inventario
+                else if (inventoryUI != null)
+                {
+                    inventoryUI.UseItem(slotIndex);
+                }
             }
         }
     }

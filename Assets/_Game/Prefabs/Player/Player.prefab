@@ -269,6 +269,7 @@ MonoBehaviour:
   hpRegenRate: 1
   manaRegenRate: 2
   characterRenderer: {fileID: 34637890435196327}
+  lootBagPrefab: {fileID: 6076978381241843569, guid: 5af6fce5dd10a404faf2d7a51b4d04df, type: 3}
 --- !u!114 &2273616803454339926
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -384,11 +385,6 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  abilities:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
 --- !u!114 &2935242607363892429
 MonoBehaviour:
   m_ObjectHideFlags: 0

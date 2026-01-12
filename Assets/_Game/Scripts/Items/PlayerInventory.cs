@@ -331,6 +331,93 @@ public class PlayerInventory : NetworkBehaviour
 
     #endregion
 
+    #region Server Methods (Loot & Death)
+
+    /// <summary>
+    /// Vacía el inventario y devuelve los items que tenía
+    /// </summary>
+    [Server]
+    public System.Collections.Generic.List<InventorySlot> ClearInventory()
+    {
+        System.Collections.Generic.List<InventorySlot> droppedItems = new System.Collections.Generic.List<InventorySlot>();
+
+        for (int i = 0; i < inventory.Count; i++)
+        {
+            if (inventory[i].itemID >= 0 && inventory[i].amount > 0)
+            {
+                droppedItems.Add(inventory[i]);
+                inventory[i] = new InventorySlot(-1, 0); // Vaciar slot
+            }
+        }
+
+        return droppedItems;
+    }
+
+    /// <summary>
+    /// Añade una lista de items al inventario (Server Side)
+    /// Usado cuando se recoge una LootBag
+    /// </summary>
+    [Server]
+    public void AddItems(System.Collections.Generic.List<InventorySlot> newItems)
+    {
+        foreach (var newItem in newItems)
+        {
+            // Reutilizamos la lógica interna de añadir
+            // No podemos llamar CmdAddItem desde el servidor, así que duplicamos lógica 
+            // o mejor, extraemos la lógica común. Por simplicidad aquí, replicamos la lógica básica de añadir.
+            
+            // Nota: Podríamos refactorizar CmdAddItem para llamar a un método "AddSingleItem" común.
+            // Para mantenerlo simple ahora:
+            AddItemServer(newItem.itemID, newItem.amount);
+        }
+    }
+
+    [Server]
+    private void AddItemServer(int itemID, int amount)
+    {
+        // Misma lógica que CmdAddItem pero sin validación de cliente
+        // Buscar stack
+        ItemData itemData = ItemDatabase.Instance?.GetItem(itemID);
+        if (itemData == null) return;
+
+        int remaining = amount;
+
+        if (itemData.isStackable)
+        {
+            for (int i = 0; i < inventory.Count; i++)
+            {
+                if (inventory[i].itemID == itemID && inventory[i].amount < itemData.maxStackSize)
+                {
+                    int space = itemData.maxStackSize - inventory[i].amount;
+                    int add = Mathf.Min(space, remaining);
+                    var slot = inventory[i];
+                    slot.amount += add;
+                    inventory[i] = slot;
+                    remaining -= add;
+                    if (remaining <= 0) break;
+                }
+            }
+        }
+
+        // Slots vacíos
+        while (remaining > 0)
+        {
+            int empty = FindEmptySlot();
+            if (empty == -1) break; // Lleno
+            
+            int add = itemData.isStackable ? Mathf.Min(remaining, itemData.maxStackSize) : 1;
+            inventory[empty] = new InventorySlot(itemID, add);
+            remaining -= add;
+        }
+
+        if (remaining < amount)
+        {
+           TargetInventoryFull(); // Notificar si no entró todo
+        }
+    }
+
+    #endregion
+
     void OnDestroy()
     {
         // Desuscribirse del callback
