@@ -1,6 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using UnityEngine.UIElements;
 using Mirror;
 using Game.Player;
 using Game.Core;
@@ -8,64 +7,58 @@ using Game.Core;
 namespace Game.UI
 {
     /// <summary>
-    /// UI que muestra información del objetivo seleccionado
+    /// UI de Objetivo - Versión para UI TOOLKIT (TargetFrame_Toolkit)
     /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class TargetFrameUI : MonoBehaviour
     {
-        [Header("UI References")]
-        [Tooltip("Panel principal (se oculta cuando no hay objetivo)")]
-        public GameObject targetPanel;
-        
-        [Tooltip("Texto del nombre del objetivo")]
-        public TextMeshProUGUI targetNameText;
-        
-        [Tooltip("Texto de la clase del objetivo")]
-        public TextMeshProUGUI targetClassText;
-        
-        [Tooltip("Barra de vida del objetivo")]
-        public Image healthBar;
-        
-        [Tooltip("Texto de HP (100/150)")]
-        public TextMeshProUGUI healthText;
+        private UIDocument uiDocument;
+        private VisualElement targetPanel;
+        private Label targetNameLabel;
+        private Label targetClassLabel;
+        private ProgressBar healthBar;
+        private Label healthTextLabel;
 
         private NetworkIdentity currentTarget;
         private IEntityStats currentTargetStats;
+        private bool isInitialized = false;
 
-        private void Start()
+        private void Awake()
         {
-            // Ocultar panel al inicio
+            // Intentamos inicializar lo antes posible
+            EnsureInitialized();
+        }
+
+        private void EnsureInitialized()
+        {
+            if (isInitialized) return;
+
+            uiDocument = GetComponent<UIDocument>();
+            if (uiDocument == null) return;
+
+            var root = uiDocument.rootVisualElement;
+            if (root == null) return;
+
+            // IMPORTANTE: Estos nombres deben coincidir con el UXML de TargetFrame_Toolkit
+            targetPanel = root.Q<VisualElement>("target-panel");
+            targetNameLabel = root.Q<Label>("target-name-text");
+            targetClassLabel = root.Q<Label>("target-class-text");
+            healthBar = root.Q<ProgressBar>("target-health-bar");
+            healthTextLabel = root.Q<Label>("target-health-text");
+
             if (targetPanel != null)
             {
-                targetPanel.SetActive(false);
+                // Empezamos con el panel oculto mediante estilos, no desactivando el objeto
+                targetPanel.style.display = DisplayStyle.None;
+                isInitialized = true;
+                Debug.Log("[TargetFrame_Toolkit] UI Toolkit inicializado correctamente.");
             }
         }
 
-        private void Update()
-        {
-            // Actualizar UI del objetivo cada frame
-            if (currentTarget != null && currentTargetStats != null)
-            {
-                if (currentTargetStats.CurrentHealth <= 0)
-                {
-                    ClearTarget();
-                }
-                else
-                {
-                    UpdateTargetUI();
-                }
-            }
-            else if (targetPanel != null && targetPanel.activeSelf)
-            {
-                // Safety: Hide if references lost unexpectedly
-                targetPanel.SetActive(false); 
-            }
-        }
-
-        /// <summary>
-        /// Establece el objetivo a mostrar
-        /// </summary>
         public void SetTarget(NetworkIdentity target)
         {
+            if (!isInitialized) EnsureInitialized();
+
             if (target == null)
             {
                 ClearTarget();
@@ -77,69 +70,53 @@ namespace Game.UI
 
             if (currentTargetStats == null)
             {
-                Debug.LogWarning($"[TargetFrameUI] El objetivo {target.name} no tiene IEntityStats (ni PlayerStats ni NpcStats)");
                 ClearTarget();
                 return;
             }
 
-            // Mostrar panel
+            // Hacemos visible el panel
             if (targetPanel != null)
-            {
-                targetPanel.SetActive(true);
-                Debug.Log($"[TargetFrameUI] Panel activado para: {target.gameObject.name}");
-            }
-            else
-            {
-                Debug.LogError("[TargetFrameUI] targetPanel reference is NULL!");
-            }
+                targetPanel.style.display = DisplayStyle.Flex;
 
-            // Actualizar nombre y clase
-            if (targetNameText != null)
-            {
-                targetNameText.text = currentTargetStats.EntityName; // Usar nombre de la interfaz
-            }
-
-            if (targetClassText != null)
-            {
-                targetClassText.text = currentTargetStats.ClassName;
-            }
+            // Actualizar textos básicos
+            if (targetNameLabel != null) targetNameLabel.text = currentTargetStats.EntityName;
+            if (targetClassLabel != null) targetClassLabel.text = currentTargetStats.ClassName;
 
             UpdateTargetUI();
         }
 
-        /// <summary>
-        /// Limpia el objetivo actual
-        /// </summary>
         public void ClearTarget()
         {
             currentTarget = null;
             currentTargetStats = null;
-
             if (targetPanel != null)
+                targetPanel.style.display = DisplayStyle.None;
+        }
+
+        private void Update()
+        {
+            if (currentTarget != null && currentTargetStats != null)
             {
-                targetPanel.SetActive(false);
-                Debug.Log("[TargetFrameUI] Panel desactivado (ClearTarget)");
+                if (currentTargetStats.CurrentHealth <= 0)
+                    ClearTarget();
+                else
+                    UpdateTargetUI();
             }
         }
 
-        /// <summary>
-        /// Actualiza la barra de vida y texto
-        /// </summary>
         private void UpdateTargetUI()
         {
             if (currentTargetStats == null) return;
 
-            // Actualizar barra de vida
             if (healthBar != null)
             {
-                float healthPercent = (float)currentTargetStats.CurrentHealth / currentTargetStats.MaxHealth;
-                healthBar.fillAmount = healthPercent;
+                healthBar.highValue = currentTargetStats.MaxHealth;
+                healthBar.value = currentTargetStats.CurrentHealth;
             }
 
-            // Actualizar texto de HP
-            if (healthText != null)
+            if (healthTextLabel != null)
             {
-                healthText.text = $"{currentTargetStats.CurrentHealth}/{currentTargetStats.MaxHealth}";
+                healthTextLabel.text = $"{currentTargetStats.CurrentHealth} / {currentTargetStats.MaxHealth}";
             }
         }
     }

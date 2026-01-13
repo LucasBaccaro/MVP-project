@@ -1,39 +1,78 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UIElements;
 using Game.Quests;
 using Game.Player;
-using UnityEngine.UI;
 
 namespace Game.UI
 {
+    /// <summary>
+    /// Quest Giver UI - Diálogo de NPC con 5 estados (Nueva, EnProgreso, Completa, Bloqueada, SinQuests)
+    /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class QuestGiverUI : MonoBehaviour
     {
-        [Header("UI References")]
-        public GameObject panel;
-        public TextMeshProUGUI titleText;
-        public TextMeshProUGUI descriptionText;
-        public TextMeshProUGUI rewardsText;
-        public TextMeshProUGUI statusText;
+        private UIDocument uiDocument;
+        private VisualElement panel;
+        private Label titleLabel;
+        private Label descriptionLabel;
+        private Label rewardsLabel;
+        private Label statusLabel;
+        private Label blockedReasonLabel;
 
-        [Header("Buttons")]
-        public GameObject acceptButton;
-        public GameObject declineButton;
-        public GameObject completeButton;
-        public GameObject closeButton;
-
-        [Header("Blocked Quest UI (Opcional)")]
-        [Tooltip("Mensaje adicional para quests bloqueadas. Si no se asigna, solo se usa statusText.")]
-        public TextMeshProUGUI blockedReasonText;
+        // Botones
+        private Button acceptButton;
+        private Button declineButton;
+        private Button completeButton;
+        private Button closeButton;
 
         // Estado actual
         private QuestGiver currentNpc;
         private QuestData currentQuest;
         private PlayerQuests playerQuests;
-        private bool isBlocked; // NUEVO: Indica si la quest está bloqueada
+        private bool isBlocked;
 
         private void Start()
         {
-            if(panel != null) panel.SetActive(false);
+            // Obtener el documento UI y buscar los elementos
+            uiDocument = GetComponent<UIDocument>();
+
+            if (uiDocument == null)
+            {
+                Debug.LogError("[QuestGiverUI] UIDocument component not found!");
+                return;
+            }
+
+            var root = uiDocument.rootVisualElement;
+
+            // Query elementos
+            panel = root.Q<VisualElement>("quest-giver-panel");
+            titleLabel = root.Q<Label>("quest-title");
+            descriptionLabel = root.Q<Label>("quest-description");
+            rewardsLabel = root.Q<Label>("quest-rewards");
+            statusLabel = root.Q<Label>("quest-status");
+            blockedReasonLabel = root.Q<Label>("quest-blocked-reason");
+
+            // Query botones
+            acceptButton = root.Q<Button>("btn-accept");
+            declineButton = root.Q<Button>("btn-decline");
+            completeButton = root.Q<Button>("btn-complete");
+            closeButton = root.Q<Button>("btn-close");
+
+            // Verificar que todos los elementos se encontraron
+            if (panel == null || titleLabel == null || descriptionLabel == null ||
+                rewardsLabel == null || statusLabel == null)
+            {
+                Debug.LogError("[QuestGiverUI] No se pudieron encontrar todos los elementos UI en el UXML!");
+            }
+
+            // Suscribirse a eventos de botones
+            if (acceptButton != null) acceptButton.clicked += OnAcceptButton;
+            if (declineButton != null) declineButton.clicked += OnDeclineButton;
+            if (completeButton != null) completeButton.clicked += OnCompleteButton;
+            if (closeButton != null) closeButton.clicked += OnCloseButton;
+
+            // Ocultar panel al inicio
+            if (panel != null) panel.style.display = DisplayStyle.None;
         }
 
         /// <summary>
@@ -55,9 +94,9 @@ namespace Game.UI
             }
 
             // Datos básicos de la quest
-            titleText.text = quest.questTitle;
-            descriptionText.text = quest.questDescription;
-            rewardsText.text = $"<color=yellow>Recompensas:</color>\n{quest.xpReward} XP\n{quest.goldReward} Oro";
+            titleLabel.text = quest.questTitle;
+            descriptionLabel.text = quest.questDescription;
+            rewardsLabel.text = $"<color=yellow>Recompensas:</color>\n{quest.xpReward} XP\n{quest.goldReward} Oro";
 
             // Determinar estado y botones
             if (blocked)
@@ -69,7 +108,7 @@ namespace Game.UI
                 ShowNormalState(quest);
             }
 
-            panel.SetActive(true);
+            panel.style.display = DisplayStyle.Flex;
         }
 
         /// <summary>
@@ -84,24 +123,24 @@ namespace Game.UI
             playerQuests = player.GetComponent<PlayerQuests>();
 
             // Mostrar mensaje de "no más quests"
-            titleText.text = npc.npcName;
-            descriptionText.text = "Has completado todas las quests que tengo para ti por ahora. ¡Sigue entrenando y vuelve pronto, aventurero!";
-            rewardsText.text = "";
-            statusText.text = "<color=gray>Sin quests disponibles</color>";
+            titleLabel.text = npc.npcName;
+            descriptionLabel.text = "Has completado todas las quests que tengo para ti por ahora. ¡Sigue entrenando y vuelve pronto, aventurero!";
+            rewardsLabel.text = "";
+            statusLabel.text = "<color=gray>Sin quests disponibles</color>";
 
             // Ocultar mensaje de bloqueo si existe
-            if (blockedReasonText != null)
+            if (blockedReasonLabel != null)
             {
-                blockedReasonText.gameObject.SetActive(false);
+                blockedReasonLabel.style.display = DisplayStyle.None;
             }
 
             // Solo botón cerrar
-            acceptButton.SetActive(false);
-            declineButton.SetActive(false);
-            completeButton.SetActive(false);
-            closeButton.SetActive(true);
+            acceptButton.style.display = DisplayStyle.None;
+            declineButton.style.display = DisplayStyle.None;
+            completeButton.style.display = DisplayStyle.None;
+            closeButton.style.display = DisplayStyle.Flex;
 
-            panel.SetActive(true);
+            panel.style.display = DisplayStyle.Flex;
 
             Debug.Log("[QuestGiverUI] Showing 'No quests available' message.");
         }
@@ -111,19 +150,19 @@ namespace Game.UI
         /// </summary>
         private void ShowBlockedState(QuestData quest)
         {
-            statusText.text = $"<color=red>Bloqueada - Requiere nivel {quest.requiredLevel}</color>";
+            statusLabel.text = $"<color=red>Bloqueada - Requiere nivel {quest.requiredLevel}</color>";
 
-            if (blockedReasonText != null)
+            if (blockedReasonLabel != null)
             {
-                blockedReasonText.text = $"Vuelve cuando seas nivel {quest.requiredLevel}";
-                blockedReasonText.gameObject.SetActive(true);
+                blockedReasonLabel.text = $"Vuelve cuando seas nivel {quest.requiredLevel}";
+                blockedReasonLabel.style.display = DisplayStyle.Flex;
             }
 
             // Solo botón cerrar
-            acceptButton.SetActive(false);
-            declineButton.SetActive(false);
-            completeButton.SetActive(false);
-            closeButton.SetActive(true);
+            acceptButton.style.display = DisplayStyle.None;
+            declineButton.style.display = DisplayStyle.None;
+            completeButton.style.display = DisplayStyle.None;
+            closeButton.style.display = DisplayStyle.Flex;
 
             Debug.Log($"[QuestGiverUI] Quest '{quest.questTitle}' está bloqueada (requiere nivel {quest.requiredLevel})");
         }
@@ -134,15 +173,14 @@ namespace Game.UI
         private void ShowNormalState(QuestData quest)
         {
             // Ocultar mensaje de bloqueo si existe
-            if (blockedReasonText != null)
+            if (blockedReasonLabel != null)
             {
-                blockedReasonText.gameObject.SetActive(false);
+                blockedReasonLabel.style.display = DisplayStyle.None;
             }
 
             string questID = quest.name;
 
             // IMPORTANTE: Acceder a la SyncList LOCAL del jugador
-            // En host y cliente, esta SyncList debe estar sincronizada
             int questIndex = GetLocalQuestIndex(questID);
             bool hasQuest = questIndex != -1;
             bool isComplete = hasQuest && IsLocalQuestComplete(questIndex);
@@ -152,11 +190,11 @@ namespace Game.UI
             if (isComplete)
             {
                 // CASO 1: Quest completa - Mostrar botón de entregar
-                statusText.text = "<color=green>¡Completa!</color>";
-                acceptButton.SetActive(false);
-                declineButton.SetActive(false);
-                completeButton.SetActive(true);
-                closeButton.SetActive(true);
+                statusLabel.text = "<color=green>¡Completa!</color>";
+                acceptButton.style.display = DisplayStyle.None;
+                declineButton.style.display = DisplayStyle.None;
+                completeButton.style.display = DisplayStyle.Flex;
+                closeButton.style.display = DisplayStyle.Flex;
             }
             else if (hasQuest)
             {
@@ -166,20 +204,20 @@ namespace Game.UI
                 int current = qs.currentAmount;
                 int required = (questData != null && questData.objectives.Count > 0) ? questData.objectives[0].requiredAmount : 0;
 
-                statusText.text = $"<color=orange>En Progreso ({current}/{required})</color>";
-                acceptButton.SetActive(false);
-                declineButton.SetActive(false);
-                completeButton.SetActive(false);
-                closeButton.SetActive(true);
+                statusLabel.text = $"<color=orange>En Progreso ({current}/{required})</color>";
+                acceptButton.style.display = DisplayStyle.None;
+                declineButton.style.display = DisplayStyle.None;
+                completeButton.style.display = DisplayStyle.None;
+                closeButton.style.display = DisplayStyle.Flex;
             }
             else
             {
                 // CASO 3: Quest nueva - Mostrar botón de aceptar
-                statusText.text = "<color=green>Nueva Quest</color>";
-                acceptButton.SetActive(true);
-                declineButton.SetActive(false); // No permitir declinar en cadena lineal
-                completeButton.SetActive(false);
-                closeButton.SetActive(true);
+                statusLabel.text = "<color=green>Nueva Quest</color>";
+                acceptButton.style.display = DisplayStyle.Flex;
+                declineButton.style.display = DisplayStyle.None; // No permitir declinar en cadena lineal
+                completeButton.style.display = DisplayStyle.None;
+                closeButton.style.display = DisplayStyle.Flex;
             }
         }
 
@@ -217,7 +255,7 @@ namespace Game.UI
 
         // ===== CALLBACKS DE BOTONES =====
 
-        public void OnAcceptButton()
+        private void OnAcceptButton()
         {
             if (currentQuest == null || playerQuests == null) return;
 
@@ -226,13 +264,13 @@ namespace Game.UI
             Close();
         }
 
-        public void OnDeclineButton()
+        private void OnDeclineButton()
         {
             Debug.Log("[QuestGiverUI] Quest declined.");
             Close();
         }
 
-        public void OnCompleteButton()
+        private void OnCompleteButton()
         {
             if (currentQuest == null || playerQuests == null) return;
 
@@ -250,7 +288,7 @@ namespace Game.UI
             Close();
         }
 
-        public void OnCloseButton()
+        private void OnCloseButton()
         {
             Debug.Log("[QuestGiverUI] Closed dialog.");
             Close();
@@ -258,18 +296,27 @@ namespace Game.UI
 
         private void Close()
         {
-            panel.SetActive(false);
+            panel.style.display = DisplayStyle.None;
 
             // Ocultar mensaje de bloqueo si está activo
-            if (blockedReasonText != null)
+            if (blockedReasonLabel != null)
             {
-                blockedReasonText.gameObject.SetActive(false);
+                blockedReasonLabel.style.display = DisplayStyle.None;
             }
 
             currentNpc = null;
             currentQuest = null;
             playerQuests = null;
-            isBlocked = false; // NUEVO: Resetear flag
+            isBlocked = false;
+        }
+
+        private void OnDisable()
+        {
+            // Cleanup
+            if (acceptButton != null) acceptButton.clicked -= OnAcceptButton;
+            if (declineButton != null) declineButton.clicked -= OnDeclineButton;
+            if (completeButton != null) completeButton.clicked -= OnCompleteButton;
+            if (closeButton != null) closeButton.clicked -= OnCloseButton;
         }
     }
 }

@@ -1,5 +1,5 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UIElements;
 using Game.Player;
 
 namespace Game.UI
@@ -8,29 +8,48 @@ namespace Game.UI
     /// HUD que muestra los stats del jugador local
     /// Se actualiza automáticamente cuando los SyncVars cambian
     /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class PlayerHUD : MonoBehaviour
     {
-        [Header("UI References")]
-        [Tooltip("Texto que muestra la clase del jugador")]
-        public TMP_Text classText;
+        // UI Toolkit - No necesitamos referencias serializadas
+        private UIDocument uiDocument;
+        private Label classLabel;
+        private Label hpLabel;
+        private Label manaLabel;
+        private Label goldLabel;
+        private Label levelLabel;
+        private Label xpLabel;
 
-        [Tooltip("Texto que muestra HP actual/máximo")]
-        public TMP_Text hpText;
-
-        [Tooltip("Texto que muestra Mana actual/máximo")]
-        public TMP_Text manaText;
-
-        [Tooltip("Texto que muestra el oro")]
-        public TMP_Text goldText;
-
-        [Tooltip("Texto que muestra el nivel")]
-        public TMP_Text levelText;
-
-        [Tooltip("Texto que muestra XP")]
-        public TMP_Text xpText;
-
-        [Header("Runtime")]
         private PlayerStats playerStats;
+
+        private void Start()
+        {
+            // Obtener el documento UI y buscar los elementos
+            uiDocument = GetComponent<UIDocument>();
+
+            if (uiDocument == null)
+            {
+                Debug.LogError("[PlayerHUD] UIDocument component not found!");
+                return;
+            }
+
+            var root = uiDocument.rootVisualElement;
+
+            // Query los elementos por nombre
+            classLabel = root.Q<Label>("hud-class-text");
+            hpLabel = root.Q<Label>("hud-hp-text");
+            manaLabel = root.Q<Label>("hud-mana-text");
+            goldLabel = root.Q<Label>("hud-gold-text");
+            levelLabel = root.Q<Label>("hud-level-text");
+            xpLabel = root.Q<Label>("hud-xp-text");
+
+            // Verificar que todos los elementos se encontraron
+            if (classLabel == null || hpLabel == null || manaLabel == null ||
+                goldLabel == null || levelLabel == null || xpLabel == null)
+            {
+                Debug.LogError("[PlayerHUD] No se pudieron encontrar todos los elementos UI en el UXML!");
+            }
+        }
 
         private void Update()
         {
@@ -63,40 +82,40 @@ namespace Game.UI
             if (playerStats == null) return;
 
             // Clase
-            if (classText != null)
+            if (classLabel != null)
             {
                 // Usar el SyncVar className en lugar de classData (que solo existe en servidor)
-                classText.text = $"Clase: {playerStats.className}";
+                classLabel.text = $"Clase: {playerStats.className}";
             }
 
             // HP
-            if (hpText != null)
+            if (hpLabel != null)
             {
-                hpText.text = $"HP: {playerStats.currentHealth}/{playerStats.maxHealth}";
+                hpLabel.text = $"HP: {playerStats.currentHealth}/{playerStats.maxHealth}";
             }
 
             // Mana
-            if (manaText != null)
+            if (manaLabel != null)
             {
-                manaText.text = $"Mana: {playerStats.currentMana}/{playerStats.maxMana}";
+                manaLabel.text = $"Mana: {playerStats.currentMana}/{playerStats.maxMana}";
             }
 
             // Oro
-            if (goldText != null)
+            if (goldLabel != null)
             {
-                goldText.text = $"Oro: {playerStats.gold}";
+                goldLabel.text = $"Oro: {playerStats.gold}";
             }
 
             // Level
-            if (levelText != null)
+            if (levelLabel != null)
             {
-                levelText.text = $"Nivel: {playerStats.level}";
+                levelLabel.text = $"Nivel: {playerStats.level}";
             }
 
             // XP
-            if (xpText != null)
+            if (xpLabel != null)
             {
-                xpText.text = $"XP: {playerStats.currentXP}/{playerStats.xpToNextLevel}";
+                xpLabel.text = $"XP: {playerStats.currentXP}/{playerStats.xpToNextLevel}";
             }
         }
 

@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/Inventory.uss" />
+
+    <!-- Panel principal del inventario (oculto por defecto) -->
+    <ui:VisualElement name="inventory-panel" class="panel inventory-panel" style="display: none;">
+        <ui:VisualElement class="panel__header">
+            <ui:Label text="INVENTARIO" class="panel__title" />
+            <ui:Button name="inventory-close-btn" text="X" class="close-button" />
+        </ui:VisualElement>
+
+        <!-- Grid de slots -->
+        <ui:ScrollView name="inventory-scroll" class="inventory__scroll">
+            <!-- Grid container donde se instanciarán los slots dinámicamente -->
+            <ui:VisualElement name="inventory-slots-container" class="inventory__grid" />
+        </ui:ScrollView>
+
+        <!-- Info del slot seleccionado (opcional para futuro) -->
+        <ui:VisualElement name="inventory-footer" class="inventory__footer">
+            <ui:Label name="selected-item-info" text="Click en un slot para seleccionar" class="inventory__info-text" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

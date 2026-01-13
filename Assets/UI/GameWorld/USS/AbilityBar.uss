@@ -1,0 +1,72 @@
+:root {
+    width: 100%;
+    height: 100%;
+}
+
+.ability-bar-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;           /* Movemos el inicio al centro de la pantalla */
+    translate: -50% 0;   /* Desplazamos la mitad de su propio ancho hacia la izquierda para centrar */
+    width: auto;         /* IMPORTANTE: El ancho ahora depende de cuántos botones haya */
+    height: auto;        /* Deja que crezca según el alto de los botones */
+    
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    
+    /* Estilo del contenedor (Ahora solo rodea a los botones) */
+    padding: 8px; 
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro semitransparente */
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ability-bar__buttons {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    /* Quitamos el height 100% para que no fuerce tamaños raros */
+}
+
+.ability-button {
+    width: 60px;
+    height: 60px;
+    margin: 0 4px;
+    background-color: rgba(15, 15, 18, 0.9);
+    border-color: rgb(74, 74, 80);
+    border-width: 2px;
+    border-radius: 6px;
+}
+
+.ability__icon {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+.ability__cooldown-overlay {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.75);
+}
+
+.ability__cooldown-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -unity-text-align: middle-center;
+    color: white;
+    font-size: 18px;
+}
+
+.ability__hotkey-text {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 12px;
+    color: rgb(212, 175, 55);
+}

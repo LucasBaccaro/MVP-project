@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/Quests.uss" />
+    <ui:VisualElement name="quest-tracker" class="quest-tracker-panel">
+        <ui:Label name="tracker-text" text="&lt;b&gt;QUESTS&lt;/b&gt;" enable-rich-text="true" class="tracker__text" />
+    </ui:VisualElement>
+</ui:UXML>

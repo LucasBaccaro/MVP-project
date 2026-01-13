@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/Quests.uss" />
+    <ui:VisualElement name="quest-giver-panel" class="panel quest-giver-panel" style="display: none;">
+        <ui:VisualElement class="panel__header">
+            <ui:Label name="quest-title" text="Quest Title" class="panel__title" />
+        </ui:VisualElement>
+        <ui:ScrollView class="quest-giver__scroll">
+            <ui:Label name="quest-description" text="Quest Description" enable-rich-text="true" class="quest-giver__description" />
+            <ui:Label name="quest-rewards" text="Rewards" enable-rich-text="true" class="quest-giver__rewards" />
+            <ui:Label name="quest-status" text="Status" enable-rich-text="true" class="quest-giver__status" />
+            <ui:Label name="quest-blocked-reason" text="" class="quest-giver__blocked-reason" style="display: none;" />
+        </ui:ScrollView>
+        <ui:VisualElement class="quest-giver__buttons">
+            <ui:Button name="btn-accept" text="Aceptar" class="rpg-button quest-giver__btn" style="display: none;" />
+            <ui:Button name="btn-decline" text="Declinar" class="rpg-button quest-giver__btn" style="display: none;" />
+            <ui:Button name="btn-complete" text="Completar" class="rpg-button quest-giver__btn" style="display: none;" />
+            <ui:Button name="btn-close" text="Cerrar" class="rpg-button quest-giver__btn" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

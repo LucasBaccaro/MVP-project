@@ -1,0 +1,148 @@
+/* --- FONDO GLOBAL --- */
+.rpg-background {
+    flex-grow: 1;
+    background-color: #050505; /* Fondo casi negro */
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- MARCO DEL PANEL (Borde Dorado Externo) --- */
+.panel-frame {
+    width: 500px;
+    padding: 4px; /* Simula grosor del borde externo */
+    background-color: #CDA85C; /* Color Oro Viejo */
+    border-radius: 8px;
+    /* Sombra para dar profundidad al panel entero */
+    box-shadow: 0 15px 40px rgba(0,0,0,0.8); 
+}
+
+/* --- INTERIOR DEL PANEL (Fondo Oscuro) --- */
+.panel-inner {
+    flex-grow: 1;
+    background-color: #1E1E24; /* Gris azulado muy oscuro (Pizarra) */
+    padding: 30px;
+    border-radius: 4px;
+    border-width: 2px;
+    border-color: #000000; /* Borde negro interno para contraste */
+}
+
+/* --- TITULO Y DIVISORES --- */
+.rpg-title {
+    font-size: 32px;
+    color: #F0E6D2; /* Blanco Pergamino */
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    text-shadow: 2px 2px 0px #000000;
+    margin-bottom: 10px;
+    letter-spacing: 4px;
+}
+
+.divider-gold {
+    height: 2px;
+    background-color: #CDA85C;
+    margin-bottom: 25px;
+    margin-left: 50px;
+    margin-right: 50px;
+    opacity: 0.6;
+}
+
+/* --- INPUTS ESTILO RPG --- */
+.input-group {
+    margin-bottom: 30px;
+}
+
+/* Modificamos el contenedor del input */
+.rpg-input {
+    margin-bottom: 15px;
+}
+
+/* Label del input (Arriba del texto) */
+.rpg-input > .unity-base-field__label {
+    color: #8E8E93; /* Gris plata */
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
+
+/* La caja donde escribes */
+.rpg-input .unity-base-text-field__input,
+.rpg-input .unity-base-popup-field__input {
+    background-color: #0F0F12; /* Casi negro */
+    border-color: #4A4A50;
+    border-width: 1px;
+    border-radius: 4px;
+    color: #D4AF37; /* Texto color Oro */
+    height: 40px;
+    -unity-text-align: middle-left;
+    padding-left: 10px;
+}
+
+/* Hover en los inputs */
+.rpg-input:hover .unity-base-text-field__input {
+    border-color: #888888;
+}
+
+/* --- ESTADO --- */
+.rpg-status {
+    color: #A0A0A0;
+    -unity-text-align: middle-center;
+    margin-bottom: 20px;
+    font-size: 14px;
+    -unity-font-style: italic;
+}
+
+/* --- BOTONES RPG --- */
+.rpg-btn {
+    height: 55px;
+    margin-bottom: 15px;
+    border-width: 2px;
+    border-radius: 6px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: white;
+    transition: 0.15s;
+    text-shadow: 1px 1px 2px black;
+}
+
+.rpg-btn:hover {
+    scale: 1.02;
+    cursor: link;
+}
+
+.rpg-btn:active {
+    scale: 0.98;
+}
+
+/* ESTILO HOST (Boton Dorado/Naranja Albion) */
+.btn-gold {
+    background-color: #D35400; /* Naranja oscuro base */
+    border-color: #E67E22;     /* Borde naranja claro */
+    color: #FEF9E7;
+}
+
+.btn-gold:hover {
+    background-color: #E67E22;
+}
+
+/* ESTILO CLIENTE (Boton Acero/Azul) */
+.btn-steel {
+    background-color: #2C3E50;
+    border-color: #5D6D7E;
+    color: #BDC3C7;
+}
+
+.btn-steel:hover {
+    background-color: #34495E;
+    border-color: #85929E;
+    color: white;
+}
+
+/* --- FOOTER --- */
+.footer-text {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    color: #444;
+    font-size: 12px;
+}

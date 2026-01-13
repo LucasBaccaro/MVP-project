@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/AbilityBar.uss" />
+
+    <!-- Contenedor principal de la barra de habilidades -->
+    <ui:VisualElement name="ability-bar-container" class="ability-bar-container">
+        <!-- Aquí se instanciarán dinámicamente los botones usando AbilityButton.uxml -->
+        <ui:VisualElement name="ability-buttons-container" class="ability-bar__buttons" />
+    </ui:VisualElement>
+</ui:UXML>

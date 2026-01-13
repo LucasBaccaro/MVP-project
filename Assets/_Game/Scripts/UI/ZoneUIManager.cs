@@ -1,17 +1,14 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UIElements;
 
 namespace Game.Player
 {
     /// <summary>
     /// Maneja la UI que muestra si el jugador está en zona segura o insegura
     /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class ZoneUIManager : MonoBehaviour
     {
-        [Header("UI References")]
-        [Tooltip("Texto que muestra el estado de la zona")]
-        public TMP_Text zoneStatusText;
-
         [Header("Settings")]
         [Tooltip("Texto mostrado en zona segura")]
         public string safeZoneText = "ZONA SEGURA";
@@ -19,22 +16,36 @@ namespace Game.Player
         [Tooltip("Texto mostrado en zona insegura")]
         public string unsafeZoneText = "ZONA PELIGROSA";
 
-        [Tooltip("Color del texto en zona segura")]
-        public Color safeZoneColor = Color.green;
-
-        [Tooltip("Color del texto en zona insegura")]
-        public Color unsafeZoneColor = Color.red;
-
         [Header("Animation")]
-        [Tooltip("Duración del efecto de fade cuando cambia de zona (segundos)")]
-        public float fadeDuration = 0.5f;
+        [Tooltip("Duración del efecto de pulso cuando cambia de zona (milisegundos)")]
+        public int pulseDurationMs = 500;
 
+        private UIDocument uiDocument;
+        private Label zoneStatusLabel;
         private bool isInSafeZone = false;
-        private float fadeTimer = 0f;
-        private bool isFading = false;
+        private IVisualElementScheduledItem pulseSchedule;
 
         private void Start()
         {
+            // Obtener el documento UI y buscar el elemento
+            uiDocument = GetComponent<UIDocument>();
+
+            if (uiDocument == null)
+            {
+                Debug.LogError("[ZoneUIManager] UIDocument component not found!");
+                return;
+            }
+
+            var root = uiDocument.rootVisualElement;
+
+            // Query el label por nombre
+            zoneStatusLabel = root.Q<Label>("zone-status-text");
+
+            if (zoneStatusLabel == null)
+            {
+                Debug.LogError("[ZoneUIManager] No se pudo encontrar 'zone-status-text' en el UXML!");
+            }
+
             // Inicializar en zona insegura por defecto
             UpdateZoneStatus(false);
         }
@@ -44,47 +55,51 @@ namespace Game.Player
         /// </summary>
         public void UpdateZoneStatus(bool isSafe)
         {
-            if (zoneStatusText == null)
+            if (zoneStatusLabel == null)
             {
-                Debug.LogWarning("[ZoneUIManager] zoneStatusText no está asignado!");
+                Debug.LogWarning("[ZoneUIManager] zoneStatusLabel no está inicializado!");
                 return;
             }
 
             isInSafeZone = isSafe;
 
-            // Actualizar texto y color
-            zoneStatusText.text = isSafe ? safeZoneText : unsafeZoneText;
-            zoneStatusText.color = isSafe ? safeZoneColor : unsafeZoneColor;
+            // Actualizar texto
+            zoneStatusLabel.text = isSafe ? safeZoneText : unsafeZoneText;
 
-            // Iniciar efecto de fade/pulse
-            StartFadeEffect();
+            // Actualizar clases CSS (cambiar color)
+            if (isSafe)
+            {
+                zoneStatusLabel.RemoveFromClassList("zone__text--unsafe");
+                zoneStatusLabel.AddToClassList("zone__text--safe");
+            }
+            else
+            {
+                zoneStatusLabel.RemoveFromClassList("zone__text--safe");
+                zoneStatusLabel.AddToClassList("zone__text--unsafe");
+            }
+
+            // Iniciar efecto de pulso
+            StartPulseEffect();
 
             Debug.Log($"[ZoneUIManager] UI actualizado: {(isSafe ? "SEGURA" : "PELIGROSA")}");
         }
 
-        private void StartFadeEffect()
+        private void StartPulseEffect()
         {
-            isFading = true;
-            fadeTimer = fadeDuration;
-        }
-
-        private void Update()
-        {
-            // Efecto de fade al cambiar de zona
-            if (isFading && zoneStatusText != null)
+            // Cancelar pulso anterior si existe
+            if (pulseSchedule != null)
             {
-                fadeTimer -= Time.deltaTime;
-
-                // Pulsar la escala del texto
-                float scale = 1f + Mathf.Sin(fadeTimer / fadeDuration * Mathf.PI) * 0.2f;
-                zoneStatusText.transform.localScale = Vector3.one * scale;
-
-                if (fadeTimer <= 0f)
-                {
-                    isFading = false;
-                    zoneStatusText.transform.localScale = Vector3.one;
-                }
+                pulseSchedule.Pause();
             }
+
+            // Añadir clase de pulso
+            zoneStatusLabel.AddToClassList("zone__text--pulsing");
+
+            // Remover clase después de la duración (CSS transitions manejan la animación)
+            pulseSchedule = zoneStatusLabel.schedule.Execute(() =>
+            {
+                zoneStatusLabel.RemoveFromClassList("zone__text--pulsing");
+            }).StartingIn(pulseDurationMs);
         }
 
         /// <summary>
@@ -93,6 +108,15 @@ namespace Game.Player
         public bool IsInSafeZone()
         {
             return isInSafeZone;
+        }
+
+        private void OnDisable()
+        {
+            // Limpiar el schedule al desactivar
+            if (pulseSchedule != null)
+            {
+                pulseSchedule.Pause();
+            }
         }
     }
 }

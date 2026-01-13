@@ -1,0 +1,77 @@
+/* ===== LOOT PANEL ===== */
+
+.loot-panel {
+    position: absolute;
+    width: 400px;
+    min-height: 300px;
+    max-height: 500px;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+}
+
+.loot__scroll {
+    flex-grow: 1;
+    margin-top: 8px;
+}
+
+.loot__slots-container {
+    flex-direction: column;
+    padding: 8px;
+}
+
+/* ===== LOOT SLOT ===== */
+
+.loot-slot {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px;
+    margin-bottom: 4px;
+    background-color: rgba(15, 15, 18, 0.7);
+    border-color: rgb(74, 74, 80);
+    border-width: 1px;
+    border-radius: 4px;
+    transition-duration: 0.1s;
+}
+
+.loot-slot:hover {
+    background-color: rgba(25, 25, 28, 0.9);
+    border-color: rgb(205, 168, 92);
+}
+
+.loot-slot__icon {
+    width: 40px;
+    height: 40px;
+    margin-right: 12px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-color: rgb(74, 74, 80);
+    border-width: 1px;
+    border-radius: 4px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.loot-slot__info {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.loot-slot__name {
+    font-size: 14px;
+    color: rgb(240, 230, 210);
+    -unity-font-style: bold;
+    margin-bottom: 2px;
+}
+
+.loot-slot__quantity {
+    font-size: 12px;
+    color: rgb(180, 180, 180);
+}
+
+/* ===== EMPTY STATE ===== */
+
+.loot__empty-message {
+    font-size: 14px;
+    color: rgb(150, 150, 150);
+    -unity-text-align: middle-center;
+    padding: 20px;
+}

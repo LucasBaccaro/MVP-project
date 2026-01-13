@@ -1,0 +1,102 @@
+:root {
+    width: 100%;
+    height: 100%;
+}
+
+.target-panel {
+    position: absolute;
+    top: 180px; /* Ajustado para quedar debajo de la zona */
+    width: 300px; 
+    /* Quitamos el margin-left: -150px porque ya usamos translate */
+    
+    background-color: rgba(30, 30, 36, 0.95);
+    border-color: rgb(205, 168, 92);
+    border-width: 2px;
+    border-radius: 8px;
+    padding: 10px;
+    pointer-events: all;
+}
+
+/* ===== MARCO VISUAL (El cuadro que realmente vemos) ===== */
+/* Creamos un "hijo" visual o aplicamos estilos al panel si no queremos cambiar el UXML */
+/* En tu caso, el target-panel es el cuadro, así que le daremos un tamaño fijo para centrarlo */
+
+.target-panel {
+    /* Sobreescribimos para que el cuadro tenga forma */
+    position: absolute;
+    top: 100px;
+    left: 50%;
+    /* Usamos el método tradicional de centrado manual si el ancho es fijo */
+    width: 300px; 
+    margin-left: -150px; /* La mitad del width para centrar perfecto */
+    
+    background-color: rgba(30, 30, 36, 0.95);
+    border-color: rgb(205, 168, 92);
+    border-width: 2px;
+    border-radius: 8px;
+    padding: 10px;
+    pointer-events: all; /* Permitimos clics dentro del cuadro */
+}
+
+/* ===== TEXTOS ===== */
+.target__name {
+    font-size: 18px;
+    color: rgb(240, 230, 210);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-bottom: 2px;
+    white-space: nowrap;
+}
+
+.target__class {
+    font-size: 13px;
+    color: rgb(180, 180, 180);
+    -unity-text-align: middle-center;
+    margin-bottom: 8px;
+    -unity-font-style: italic;
+}
+
+/* ===== BARRA DE VIDA ===== */
+.target__health-container {
+    position: relative;
+    height: 26px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* Estilos internos de la ProgressBar de Unity */
+.target__health-bar {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Fondo de la barra */
+.target__health-bar .unity-progress-bar__background {
+    background-color: rgb(40, 20, 20);
+    border-color: rgb(15, 15, 15);
+    border-width: 1px;
+    border-radius: 4px;
+}
+
+/* El relleno de la barra (el color de la vida) */
+.target__health-bar .unity-progress-bar__progress {
+    background-color: rgb(200, 40, 40); /* Rojo intenso */
+    border-radius: 3px;
+    margin: 1px;
+}
+
+/* Texto sobre la barra de vida */
+.target__health-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    font-size: 13px;
+    color: white;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    text-shadow: 1px 1px 1px black;
+}

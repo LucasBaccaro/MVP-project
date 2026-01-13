@@ -1,19 +1,49 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UIElements;
 using Game.Quests;
 using System.Text;
 
 namespace Game.UI
 {
+    /// <summary>
+    /// Quest Tracker UI - Muestra las quests activas en tiempo real
+    /// </summary>
+    [RequireComponent(typeof(UIDocument))]
     public class QuestTrackerUI : MonoBehaviour
     {
-        public TextMeshProUGUI trackerText;
-        
-        // This would listen to PlayerQuests events ideally.
-        // For MVP, we can have PlayerQuests reference this directly if it finds it.
+        private UIDocument uiDocument;
+        private Label trackerLabel;
 
+        private void Start()
+        {
+            // Obtener el documento UI y buscar el elemento
+            uiDocument = GetComponent<UIDocument>();
+
+            if (uiDocument == null)
+            {
+                Debug.LogError("[QuestTrackerUI] UIDocument component not found!");
+                return;
+            }
+
+            var root = uiDocument.rootVisualElement;
+
+            // Query el label por nombre
+            trackerLabel = root.Q<Label>("tracker-text");
+
+            if (trackerLabel == null)
+            {
+                Debug.LogError("[QuestTrackerUI] No se pudo encontrar 'tracker-text' en el UXML!");
+            }
+        }
+
+        /// <summary>
+        /// Actualiza el tracker con las quests activas
+        /// Llamado desde PlayerQuests cuando cambia la lista
+        /// </summary>
         public void UpdateTracker(QuestStatus[] activeQuests)
         {
+            if (trackerLabel == null) return;
+
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("<b>QUESTS</b>");
 
@@ -30,7 +60,7 @@ namespace Game.UI
                 }
             }
 
-            trackerText.text = sb.ToString();
+            trackerLabel.text = sb.ToString();
         }
     }
 }

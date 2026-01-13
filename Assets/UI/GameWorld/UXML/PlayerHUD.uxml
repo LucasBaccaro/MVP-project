@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/PlayerHUD.uss" />
+    <ui:VisualElement name="player-hud" class="hud-panel">
+        <ui:Label name="hud-class-text" text="Clase: -" class="hud__text" />
+        <ui:Label name="hud-hp-text" text="HP: -/-" class="hud__text hud__text--health" />
+        <ui:Label name="hud-mana-text" text="Mana: -/-" class="hud__text hud__text--mana" />
+        <ui:Label name="hud-gold-text" text="Oro: -" class="hud__text hud__text--gold" />
+        <ui:Label name="hud-level-text" text="Nivel: -" class="hud__text hud__text--level" />
+        <ui:Label name="hud-xp-text" text="XP: -/-" class="hud__text hud__text--xp" />
+    </ui:VisualElement>
+</ui:UXML>

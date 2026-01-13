@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/Loot.uss" />
+
+    <!-- Panel de loot (oculto por defecto) -->
+    <ui:VisualElement name="loot-panel" class="panel loot-panel" style="display: none;">
+        <ui:VisualElement class="panel__header">
+            <ui:Label text="LOOT" class="panel__title" />
+            <ui:Button name="loot-close-btn" text="X" class="close-button" />
+        </ui:VisualElement>
+
+        <!-- Scroll con slots de items -->
+        <ui:ScrollView name="loot-scroll" class="loot__scroll">
+            <!-- Contenedor donde se instanciarán los slots dinámicamente -->
+            <ui:VisualElement name="loot-slots-container" class="loot__slots-container" />
+        </ui:ScrollView>
+    </ui:VisualElement>
+</ui:UXML>

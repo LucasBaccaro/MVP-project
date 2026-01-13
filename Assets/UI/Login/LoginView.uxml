@@ -1,0 +1,34 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:Style src="LoginStyles.uss" />
+
+    <!-- Fondo del Mundo (Simulado) -->
+    <ui:VisualElement class="rpg-background">
+        
+        <!-- Panel Principal (Marco Dorado) -->
+        <ui:VisualElement class="panel-frame">
+            <ui:VisualElement class="panel-inner">
+                
+                <!-- Cabecera -->
+                <ui:Label text="KINGDOM LOGIN" class="rpg-title" />
+                <ui:VisualElement class="divider-gold" />
+
+                <!-- Inputs -->
+                <ui:VisualElement class="input-group">
+                    <ui:TextField name="input-name" label="NOMBRE DE HEROE" class="rpg-input" />
+                    <ui:DropdownField name="dropdown-class" label="CLASE INICIAL" class="rpg-input" />
+                </ui:VisualElement>
+
+                <!-- Estado -->
+                <ui:Label name="lbl-status" text="El destino espera..." class="rpg-status" />
+
+                <!-- Botones de Acción -->
+                <ui:Button name="btn-host" text="CREAR MUNDO (HOST)" class="rpg-btn btn-gold" />
+                <ui:Button name="btn-client" text="ENTRAR AL REINO (CLIENT)" class="rpg-btn btn-steel" />
+                
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Version Footer -->
+        <ui:Label text="v1.0.2 - Alpha Build" class="footer-text" />
+    </ui:VisualElement>
+</ui:UXML>

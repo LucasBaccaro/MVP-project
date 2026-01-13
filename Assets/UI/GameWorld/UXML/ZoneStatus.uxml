@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/ZoneStatus.uss" />
+    <ui:VisualElement name="zone-status-container" class="zone-container">
+        <ui:Label name="zone-status-text" text="ZONA PELIGROSA" class="zone__text zone__text--unsafe" />
+    </ui:VisualElement>
+</ui:UXML>

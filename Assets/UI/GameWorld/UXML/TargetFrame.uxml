@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="../USS/GameWorldShared.uss" />
+    <Style src="../USS/TargetFrame.uss" />
+    <ui:VisualElement name="target-panel" class="target-panel">
+        <ui:Label name="target-name-text" text="Target Name" class="target__name" />
+        <ui:Label name="target-class-text" text="Target Class" class="target__class" />
+        <ui:VisualElement class="target__health-container">
+            <ui:ProgressBar name="target-health-bar" value="1" high-value="1" class="target__health-bar" />
+            <ui:Label name="target-health-text" text="100/100" class="target__health-text" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
