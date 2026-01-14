@@ -19,27 +19,54 @@
     white-space: normal;
 }
 
-/* ===== QUEST LOG STYLES ===== */
+/* ===== QUEST LOG STYLES (Book Design) ===== */
 
 .quest-log-panel {
     position: absolute;
-    width: 600px;
-    height: 500px;
+    width: 700px;
+    height: 480px;
     left: 50%;
     top: 50%;
     translate: -50% -50%;
+    background-image: url("project://database/Assets/UI/Art/Panels/_0001_UI-GPW-QuestLog.png");
+    -unity-background-scale-mode: stretch-to-fill;
+    padding: 30px 40px;
+    border-width: 0;
 }
 
+/* Close Button (X) */
+.quest-log__close-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    background-color: rgba(139, 90, 43, 0.8);
+    border-width: 2px;
+    border-color: rgb(101, 67, 33);
+    border-radius: 4px;
+    color: rgb(255, 240, 220);
+    font-size: 18px;
+    -unity-font-style: bold;
+    cursor: link;
+}
+
+.quest-log__close-btn:hover {
+    background-color: rgba(180, 120, 60, 0.9);
+}
+
+/* Quest Log Scroll */
 .quest-log__scroll {
     flex-grow: 1;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
+/* Quest Log Content */
 .quest-log__content {
     font-size: 14px;
-    color: rgb(240, 230, 210);
+    color: rgb(60, 45, 30);
     white-space: normal;
-    padding: 8px;
+    padding: 10px;
 }
 
 /* ===== QUEST GIVER STYLES ===== */

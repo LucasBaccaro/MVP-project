@@ -1,13 +1,23 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements"
+         xsi="http://www.w3.org/2001/XMLSchema-instance"
+         engine="UnityEngine.UIElements" editor="UnityEditor.UIElements"
+         noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd"
+         editor-extension-mode="False">
+
     <Style src="../USS/GameWorldShared.uss" />
     <Style src="../USS/Quests.uss" />
-    <ui:VisualElement name="quest-log-panel" class="panel quest-log-panel" style="display: none;">
-        <ui:VisualElement class="panel__header">
-            <ui:Label text="DIARIO DE QUESTS" class="panel__title" />
-            <ui:Button name="quest-log-close-btn" text="X" class="close-button" />
-        </ui:VisualElement>
+
+    <!-- Main Quest Log Panel (Book) -->
+    <ui:VisualElement name="quest-log-panel" class="quest-log-panel" style="display: none;">
+
+        <!-- Close Button (X) - Top Right -->
+        <ui:Button name="quest-log-close-btn" text="X" class="quest-log__close-btn" />
+
+        <!-- Content Area -->
         <ui:ScrollView name="quest-log-scroll" class="quest-log__scroll">
             <ui:Label name="quest-log-content" text="" enable-rich-text="true" class="quest-log__content" />
         </ui:ScrollView>
+
     </ui:VisualElement>
 </ui:UXML>

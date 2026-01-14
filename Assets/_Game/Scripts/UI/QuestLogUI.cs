@@ -108,15 +108,18 @@ namespace Game.UI
                 QuestData questData = q.GetQuestData();
                 if (questData == null) continue;
 
-                t += $"<color=orange><b>{questData.questTitle}</b></color>\n";
-                t += $"{questData.questDescription}\n";
+                t += $"<color=#CDA85C><b>{questData.questTitle}</b></color>\n";
+                t += $"{questData.questDescription}\n\n";
                 t += "<b>Objetivos:</b>\n";
                 foreach(var obj in questData.objectives)
                 {
-                    // MVP assumes single objective tracking for now, but looping for future proof
-                    t += $"- {obj.targetName}: {q.currentAmount}/{obj.requiredAmount}\n";
+                    string checkmark = q.currentAmount >= obj.requiredAmount ? "<color=#4CAF50>✓</color>" : "○";
+                    t += $"  {checkmark} {obj.targetName}: {q.currentAmount}/{obj.requiredAmount}\n";
                 }
-                t += $"Rewards: {questData.xpReward} XP, {questData.goldReward} Gold\n\n";
+                t += $"\n<b>Recompensas:</b>\n";
+                t += $"  <color=#9C27B0>{questData.xpReward} XP</color>\n";
+                t += $"  <color=#FFC107>{questData.goldReward} Oro</color>\n\n";
+                t += "────────────────────\n\n";
             }
             contentLabel.text = t;
         }

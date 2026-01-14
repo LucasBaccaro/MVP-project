@@ -1,12 +1,41 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <Style src="../USS/GameWorldShared.uss" />
-    <Style src="../USS/PlayerHUD.uss" />
+    <Style src="project://database/Assets/UI/GameWorld/USS/GameWorldShared.uss?fileID=7433441132597879392&amp;guid=a0a7f37a17dc74804a34e397a4afadb4&amp;type=3#GameWorldShared"/>
+    <Style src="project://database/Assets/UI/GameWorld/USS/PlayerHUD.uss?fileID=7433441132597879392&amp;guid=b27d9b208e32941b3b1dbe052c9f36b0&amp;type=3#PlayerHUD"/>
     <ui:VisualElement name="player-hud" class="hud-panel">
-        <ui:Label name="hud-class-text" text="Clase: -" class="hud__text" />
-        <ui:Label name="hud-hp-text" text="HP: -/-" class="hud__text hud__text--health" />
-        <ui:Label name="hud-mana-text" text="Mana: -/-" class="hud__text hud__text--mana" />
-        <ui:Label name="hud-gold-text" text="Oro: -" class="hud__text hud__text--gold" />
-        <ui:Label name="hud-level-text" text="Nivel: -" class="hud__text hud__text--level" />
-        <ui:Label name="hud-xp-text" text="XP: -/-" class="hud__text hud__text--xp" />
+        <ui:VisualElement name="portrait-container" class="portrait-container" style="top: 27px; left: 9px; width: 93px; height: 87px; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; background-image: none; background-color: rgba(255, 255, 255, 0);">
+            <ui:VisualElement name="portrait-image" class="portrait-image" style="background-color: rgba(176, 34, 34, 0); background-image: url(&quot;project://database/Assets/UI/Art/Classes/MISC-Class_Shaman.png?fileID=2800000&amp;guid=d606c91d2e35240b885334267cc2a0e5&amp;type=3#MISC-Class_Shaman&quot;); -unity-background-image-tint-color: rgb(255, 255, 255); width: 90px; height: 87px; background-size: contain;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="level-container" class="level-container" style="top: 103px; left: 36px;">
+            <ui:Label name="level-label" text="1" class="level-label" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); color: rgb(255, 213, 177); font-size: 16px; text-shadow: 0.2px 0.2px 1px rgb(0, 0, 0); position: absolute; top: 7px; left: 5px; width: 27px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="class-container" class="class-container" style="top: 24px; right: 11px; opacity: 1; background-image: none;">
+            <ui:VisualElement name="class-icon" class="class-icon" style="background-image: none; width: 50px; height: 50px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="safezone-icon" class="safezone-icon hidden" style="position: absolute;"/>
+        <ui:VisualElement name="hp-bar-container" class="bar-container bar-container--hp" style="top: 69px; left: 111px; height: 18px; width: 181px;">
+            <ui:VisualElement name="hp-bar-mask" class="bar-mask" style="width: 164px;">
+                <ui:VisualElement name="hp-bar-fill" class="bar-fill bar-fill--hp" style="width: 165px;"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="hp-bar-glass" class="bar-glass bar-glass--hp-mana" style="width: 161px; height: 13px; top: 2px; left: 0; background-color: rgba(0, 0, 0, 0); -unity-background-image-tint-color: rgba(255, 255, 255, 0.84);"/>
+            <ui:Label name="hp-bar-label" text="100/100" class="bar-label" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); text-shadow: 0.2px 0.2px 3px rgb(0, 0, 0); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; -unity-text-outline-width: 0; width: 164px; font-size: 14px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="xp-bar-container" class="bar-container bar-container--xp" style="top: 110px; left: 85px; height: 12px; width: 175px;">
+            <ui:VisualElement name="xp-bar-mask" class="bar-mask" style="width: 175px;">
+                <ui:VisualElement name="xp-bar-fill" class="bar-fill bar-fill--xp" style="width: 175px;"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="xp-bar-glass" class="bar-glass bar-glass--xp" style="height: 10px; width: 172px;"/>
+            <ui:Label name="xp-bar-label" text="0/100" class="bar-label bar-label--xp" style="text-shadow: 0.2px 0.2px 1px rgb(0, 0, 0); -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); -unity-font-style: bold;"/>
+        </ui:VisualElement>
+        <ui:Label name="player-name-label" text="Playeraaaaaaaaaaaaaaa" class="player-name-label" style="top: 28px; left: 113px; font-size: 18px; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); text-shadow: 0 0 0 rgb(0, 0, 0); color: rgb(84, 53, 27); -unity-font-style: bold; width: 131px; -unity-text-align: middle-center; white-space: nowrap; text-overflow: ellipsis;"/>
+        <ui:VisualElement name="zone-container" class="level-container" style="top: 57px; left: 292px;">
+            <ui:Label name="level-label" text="1" class="level-label" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); color: rgb(255, 213, 177); font-size: 16px; text-shadow: 0.2px 0.2px 1px rgb(0, 0, 0); position: absolute; top: 7px; left: 5px; width: 27px;"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="mana-bar-container" class="bar-container bar-container--mana" style="top: 110px; left: 131px; height: 17px;">
+        <ui:VisualElement name="mana-bar-mask" class="bar-mask" style="width: 165px;">
+            <ui:VisualElement name="mana-bar-fill" class="bar-fill bar-fill--mana" style="width: 165px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="mana-bar-glass" class="bar-glass bar-glass--hp-mana" style="width: 162px; height: 13px; top: 2px; -unity-background-image-tint-color: rgba(255, 255, 255, 0.75);"/>
+        <ui:Label name="mana-bar-label" text="100/100" class="bar-label" style="width: 164px; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); text-shadow: 0.1px 0.1px 2px rgb(0, 0, 0); font-size: 14px;"/>
     </ui:VisualElement>
 </ui:UXML>
