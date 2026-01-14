@@ -13,13 +13,13 @@ namespace Game.Combat
     public class PlayerCombat : NetworkBehaviour
     {
         [Header("Abilities")]
-        [Tooltip("Habilidades disponibles para este jugador")]
-        public readonly SyncList<AbilityData> abilities = new SyncList<AbilityData>();
+        [Tooltip("IDs de las habilidades disponibles para este jugador (sincronizado)")]
+        public readonly SyncList<int> abilityIDs = new SyncList<int>();
 
         [Header("References")]
         private TargetingSystem targetingSystem;
         private PlayerStats playerStats;
-        private ZoneHandler zoneHandler; // Referencia al ZoneHandler
+        private ZoneHandler zoneHandler;
 
         // Cooldowns activos (abilityIndex -> tiempo cuando estará listo)
         private Dictionary<int, float> cooldowns = new Dictionary<int, float>();
@@ -27,15 +27,35 @@ namespace Game.Combat
         // Eventos para UI
         public event System.Action<int, float> OnCooldownStarted;
         public event System.Action<int> OnCooldownReady;
+        public event System.Action OnAbilitiesUpdated;
+
+        /// <summary>
+        /// Propiedad para obtener las AbilityData desde los IDs sincronizados
+        /// </summary>
+        public List<AbilityData> abilities
+        {
+            get
+            {
+                List<AbilityData> result = new List<AbilityData>();
+                if (AbilityDatabase.Instance == null) return result;
+
+                foreach (int id in abilityIDs)
+                {
+                    AbilityData ability = AbilityDatabase.Instance.GetAbility(id);
+                    result.Add(ability); // Puede ser null si no existe
+                }
+                return result;
+            }
+        }
 
         private void Awake()
         {
             targetingSystem = GetComponent<TargetingSystem>();
             playerStats = GetComponent<PlayerStats>();
-            zoneHandler = GetComponent<ZoneHandler>(); // Obtener referencia
-            
+            zoneHandler = GetComponent<ZoneHandler>();
+
             // Suscribirse a cambios en la SyncList
-            abilities.Callback += OnAbilitiesChanged;
+            abilityIDs.Callback += OnAbilityIDsChanged;
         }
 
         private void Update()
@@ -54,6 +74,17 @@ namespace Game.Combat
         }
 
         /// <summary>
+        /// Obtiene el AbilityData para un índice específico
+        /// </summary>
+        public AbilityData GetAbility(int index)
+        {
+            if (index < 0 || index >= abilityIDs.Count) return null;
+            if (AbilityDatabase.Instance == null) return null;
+
+            return AbilityDatabase.Instance.GetAbility(abilityIDs[index]);
+        }
+
+        /// <summary>
         /// Intenta usar una habilidad (llamado desde cliente)
         /// </summary>
         public void TryUseAbility(int abilityIndex)
@@ -66,7 +97,7 @@ namespace Game.Combat
 
             // Obtener el objetivo actual
             NetworkIdentity target = targetingSystem.currentTarget;
-            
+
             // Enviar comando al servidor con el objetivo
             CmdUseAbility(abilityIndex, target);
         }
@@ -77,14 +108,14 @@ namespace Game.Combat
         private bool ValidateAbilityLocal(int abilityIndex)
         {
             // Verificar índice válido
-            if (abilityIndex < 0 || abilityIndex >= abilities.Count)
+            if (abilityIndex < 0 || abilityIndex >= abilityIDs.Count)
             {
                 Debug.LogWarning($"[PlayerCombat] Índice de habilidad inválido: {abilityIndex}");
                 return false;
             }
 
             // Verificar que existe la habilidad
-            AbilityData ability = abilities[abilityIndex];
+            AbilityData ability = GetAbility(abilityIndex);
             if (ability == null)
             {
                 Debug.LogWarning($"[PlayerCombat] No hay habilidad en slot {abilityIndex}");
@@ -166,13 +197,13 @@ namespace Game.Combat
             target = null;
 
             // 1. Verificar índice válido
-            if (abilityIndex < 0 || abilityIndex >= abilities.Count)
+            if (abilityIndex < 0 || abilityIndex >= abilityIDs.Count)
             {
                 Debug.LogWarning($"[PlayerCombat][Server] Índice inválido: {abilityIndex}");
                 return false;
             }
 
-            ability = abilities[abilityIndex];
+            ability = GetAbility(abilityIndex);
             if (ability == null)
             {
                 Debug.LogWarning($"[PlayerCombat][Server] Habilidad null en slot {abilityIndex}");
@@ -253,13 +284,12 @@ namespace Game.Combat
                 case AbilityType.Damage:
                     ApplyDamage(ability, target);
                     break;
-                
+
                 case AbilityType.Heal:
                     ApplyHeal(ability, target);
                     break;
-                
+
                 case AbilityType.Buff:
-                    // TODO: Implementar buffs en el futuro
                     Debug.Log($"[PlayerCombat][Server] Buffs no implementados aún");
                     break;
             }
@@ -277,10 +307,10 @@ namespace Game.Combat
             if (targetStats != null)
             {
                 int totalDamage = ability.baseDamage + playerStats.damage;
-                
+
                 // Pasar 'playerStats' como atacante
                 targetStats.TakeDamage(totalDamage, playerStats);
-                
+
                 Debug.Log($"[PlayerCombat][Server] {gameObject.name} hizo {totalDamage} de daño a {targetStats.EntityName}");
             }
         }
@@ -294,9 +324,9 @@ namespace Game.Combat
             PlayerStats targetStats = target.GetComponent<PlayerStats>();
             if (targetStats != null)
             {
-                int healAmount = ability.baseDamage; // Reutilizamos baseDamage para heal
+                int healAmount = ability.baseDamage;
                 targetStats.Heal(healAmount);
-                
+
                 Debug.Log($"[PlayerCombat][Server] {gameObject.name} curó {healAmount} HP a {target.gameObject.name}");
             }
         }
@@ -307,35 +337,27 @@ namespace Game.Combat
         [ClientRpc]
         private void RpcPlayAbilityEffect(int abilityIndex, Vector3 targetPosition)
         {
-            if (abilityIndex < 0 || abilityIndex >= abilities.Count) return;
-            
-            AbilityData ability = abilities[abilityIndex];
+            AbilityData ability = GetAbility(abilityIndex);
             if (ability == null) return;
 
-            // TODO: Instanciar partículas, reproducir sonidos, etc.
             Debug.Log($"[PlayerCombat][Client] Efecto de {ability.abilityName} reproducido");
         }
 
         #region Cooldown Management
 
         /// <summary>
-        /// Inicia un cooldown
-        /// </summary>
-        /// <summary>
         /// Inicia un cooldown (Server Side)
         /// </summary>
         [Server]
         private void StartCooldown(int abilityIndex, float cooldownTime)
         {
-            // 1. Actualizar diccionario del servidor para validación
             float readyTime = Time.time + cooldownTime;
-            
+
             if (cooldowns.ContainsKey(abilityIndex))
                 cooldowns[abilityIndex] = readyTime;
             else
                 cooldowns.Add(abilityIndex, readyTime);
-            
-            // 2. Avisar a los clientes para la UI
+
             RpcStartCooldown(abilityIndex, cooldownTime);
         }
 
@@ -345,17 +367,15 @@ namespace Game.Combat
         [ClientRpc]
         private void RpcStartCooldown(int abilityIndex, float cooldownTime)
         {
-            // 1. Actualizar diccionario local (para predicción/UI)
             float readyTime = Time.time + cooldownTime;
-            
+
             if (cooldowns.ContainsKey(abilityIndex))
                 cooldowns[abilityIndex] = readyTime;
             else
                 cooldowns.Add(abilityIndex, readyTime);
 
-            // 2. Disparar evento para la UI
             OnCooldownStarted?.Invoke(abilityIndex, cooldownTime);
-            
+
             Debug.Log($"[PlayerCombat] Cooldown iniciado para slot {abilityIndex}: {cooldownTime}s");
         }
 
@@ -365,7 +385,7 @@ namespace Game.Combat
         public bool IsOnCooldown(int abilityIndex)
         {
             if (!cooldowns.ContainsKey(abilityIndex)) return false;
-            
+
             return Time.time < cooldowns[abilityIndex];
         }
 
@@ -375,7 +395,7 @@ namespace Game.Combat
         public float GetCooldownRemaining(int abilityIndex)
         {
             if (!IsOnCooldown(abilityIndex)) return 0f;
-            
+
             return cooldowns[abilityIndex] - Time.time;
         }
 
@@ -394,7 +414,6 @@ namespace Game.Combat
                 }
             }
 
-            // Notificar habilidades listas
             foreach (int abilityIndex in readyAbilities)
             {
                 cooldowns.Remove(abilityIndex);
@@ -407,15 +426,16 @@ namespace Game.Combat
         #region Public API
 
         /// <summary>
-        /// Callback cuando la SyncList de habilidades cambia
+        /// Callback cuando la SyncList de IDs cambia
         /// </summary>
-        private void OnAbilitiesChanged(SyncList<AbilityData>.Operation op, int index, AbilityData oldItem, AbilityData newItem)
+        private void OnAbilityIDsChanged(SyncList<int>.Operation op, int index, int oldItem, int newItem)
         {
-            Debug.Log($"[PlayerCombat] Habilidades actualizadas. Total: {abilities.Count}");
+            Debug.Log($"[PlayerCombat] Habilidades actualizadas. Total: {abilityIDs.Count}");
+            OnAbilitiesUpdated?.Invoke();
         }
 
         /// <summary>
-        /// Asigna habilidades al jugador (llamado desde NetworkManager al inicializar)
+        /// Asigna habilidades al jugador por IDs (llamado desde NetworkManager al inicializar)
         /// </summary>
         [Server]
         public void SetAbilities(AbilityData[] newAbilities)
@@ -426,17 +446,37 @@ namespace Game.Combat
                 return;
             }
 
-            // Limpiar y añadir a la SyncList
-            abilities.Clear();
+            abilityIDs.Clear();
             foreach (var ability in newAbilities)
             {
                 if (ability != null)
                 {
-                    abilities.Add(ability);
+                    abilityIDs.Add(ability.abilityID);
                 }
             }
-            
-            Debug.Log($"[PlayerCombat][Server] {abilities.Count} habilidades asignadas");
+
+            Debug.Log($"[PlayerCombat][Server] {abilityIDs.Count} habilidades asignadas (IDs)");
+        }
+
+        /// <summary>
+        /// Asigna habilidades por IDs directamente
+        /// </summary>
+        [Server]
+        public void SetAbilityIDs(int[] ids)
+        {
+            if (ids == null || ids.Length == 0)
+            {
+                Debug.LogWarning("[PlayerCombat][Server] Intentando asignar IDs null o vacíos");
+                return;
+            }
+
+            abilityIDs.Clear();
+            foreach (var id in ids)
+            {
+                abilityIDs.Add(id);
+            }
+
+            Debug.Log($"[PlayerCombat][Server] {abilityIDs.Count} habilidades asignadas (IDs)");
         }
 
         #endregion

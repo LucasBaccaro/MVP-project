@@ -102,6 +102,7 @@ namespace Game.UI
                         // Suscribirse a eventos de cooldown
                         playerCombat.OnCooldownStarted += OnCooldownStarted;
                         playerCombat.OnCooldownReady += OnCooldownReady;
+                        playerCombat.OnAbilitiesUpdated += OnAbilitiesUpdated;
 
                         Debug.Log($"[AbilityBarUI] PlayerCombat encontrado en intento {attempts} - Inicialización completa");
                         yield break;
@@ -219,6 +220,15 @@ namespace Game.UI
             }
         }
 
+        /// <summary>
+        /// Evento: Habilidades actualizadas (reinicializar UI)
+        /// </summary>
+        private void OnAbilitiesUpdated()
+        {
+            Debug.Log("[AbilityBarUI] Habilidades actualizadas, reinicializando barra...");
+            InitializeAbilityBar();
+        }
+
         private void Update()
         {
             // Actualizar todos los botones cada frame
@@ -255,6 +265,7 @@ namespace Game.UI
             {
                 playerCombat.OnCooldownStarted -= OnCooldownStarted;
                 playerCombat.OnCooldownReady -= OnCooldownReady;
+                playerCombat.OnAbilitiesUpdated -= OnAbilitiesUpdated;
             }
 
             // Cleanup de botones

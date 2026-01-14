@@ -95,7 +95,15 @@ namespace Game.UI
 
         private void Update()
         {
-            if (currentTarget != null && currentTargetStats != null)
+            // Verificar si el target fue destruido (Unity overload del operador ==)
+            if (!currentTarget)
+            {
+                if (targetPanel != null && targetPanel.style.display == DisplayStyle.Flex)
+                    ClearTarget();
+                return;
+            }
+
+            if (currentTargetStats != null)
             {
                 if (currentTargetStats.CurrentHealth <= 0)
                     ClearTarget();

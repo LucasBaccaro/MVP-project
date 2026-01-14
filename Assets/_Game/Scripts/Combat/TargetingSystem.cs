@@ -96,8 +96,8 @@ namespace Game.Combat
                 ClearTarget();
             }
 
-            // Validar que el objetivo sigue siendo válido
-            if (currentTarget != null && !IsTargetValid())
+            // Validar que el objetivo sigue siendo válido (usar operador implícito de Unity)
+            if (currentTarget && !IsTargetValid())
             {
                 ClearTarget();
             }
@@ -184,8 +184,7 @@ namespace Game.Combat
         /// </summary>
         public void ClearTarget()
         {
-            if (currentTarget == null) return;
-
+            // Siempre notificar aunque el target ya esté destruido
             Debug.Log("[TargetingSystem] Objetivo limpiado");
             currentTarget = null;
             OnTargetChanged?.Invoke(null);
@@ -196,10 +195,14 @@ namespace Game.Combat
         /// </summary>
         public bool IsTargetValid()
         {
-            if (currentTarget == null) return false;
-            if (currentTarget.gameObject == null) return false;
+            // Usar operador implícito de Unity para detectar objetos destruidos
+            if (!currentTarget) return false;
             if (!currentTarget.gameObject.activeInHierarchy) return false;
-            
+
+            // Verificar si el target está muerto
+            var targetStats = currentTarget.GetComponent<Game.Core.IEntityStats>();
+            if (targetStats != null && targetStats.CurrentHealth <= 0) return false;
+
             return true;
         }
 
