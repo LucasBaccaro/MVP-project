@@ -1,16 +1,23 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <Style src="../USS/AbilityBar.uss" /> <!-- AÑADE ESTA LÍNEA -->
+    <Style src="../USS/AbilityBar.uss" />
+
     <ui:VisualElement name="ability-button" class="ability-button">
-        <!-- Background con icono de habilidad -->
+        <!-- Capa 1: Background del slot -->
+        <ui:VisualElement name="ability-background" class="ability__background" />
+
+        <!-- Capa 2: Icono de la habilidad (se asigna dinámicamente en C#) -->
         <ui:VisualElement name="ability-icon" class="ability__icon" />
+                                     
+        <!-- Capa 3: Highlight (se muestra en hover) -->
+        <ui:VisualElement name="ability-highlight" class="ability__highlight" />
 
-        <!-- Overlay oscuro para cooldown (se expande desde arriba) -->
-        <ui:VisualElement name="cooldown-overlay" class="ability__cooldown-overlay" style="display: none;" />
+        <!-- Capa 4: Overlay oscuro para cooldown -->
+        <ui:VisualElement name="cooldown-overlay" class="ability__cooldown-overlay" />
 
-        <!-- Texto del countdown (ej: 3.5s) -->
-        <ui:Label name="cooldown-text" text="0.0" class="ability__cooldown-text" style="display: none;" />
+        <!-- Capa 5: Texto del countdown (ej: 3.5s) -->
+        <ui:Label name="cooldown-text" text="0.0" class="ability__cooldown-text" />
 
-        <!-- Hotkey (1, 2, 3, 4) en esquina inferior derecha -->
+        <!-- Capa 6: Hotkey (1, 2, 3, 4) en esquina inferior derecha -->
         <ui:Label name="hotkey-text" text="1" class="ability__hotkey-text" />
     </ui:VisualElement>
 </ui:UXML>

@@ -1,23 +1,16 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <Style src="../USS/GameWorldShared.uss" />
-    <Style src="../USS/Inventory.uss" />
-
-    <!-- Panel principal del inventario (oculto por defecto) -->
-    <ui:VisualElement name="inventory-panel" class="panel inventory-panel" style="display: none;">
-        <ui:VisualElement class="panel__header">
-            <ui:Label text="INVENTARIO" class="panel__title" />
-            <ui:Button name="inventory-close-btn" text="X" class="close-button" />
+    <Style src="project://database/Assets/UI/GameWorld/USS/GameWorldShared.uss?fileID=7433441132597879392&amp;guid=a0a7f37a17dc74804a34e397a4afadb4&amp;type=3#GameWorldShared"/>
+    <Style src="project://database/Assets/UI/GameWorld/USS/Inventory.uss?fileID=7433441132597879392&amp;guid=49a7167f100734108ae03cc5c39205c2&amp;type=3#Inventory"/>
+    <ui:VisualElement name="inventory-panel" class="inventory-panel" style="display: flex; align-content: flex-start; justify-content: space-between; align-self: flex-start; left: 85%; top: 65%; align-items: stretch;">
+        <ui:VisualElement class="panel__header" style="align-content: auto; justify-content: flex-start; align-items: auto; -unity-text-align: upper-left;">
+            <ui:Label text="INVENTARIO" class="panel__title" style="align-self: auto; align-items: center; position: absolute; top: 7px; left: 117px; -unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); width: 253px; -unity-text-align: upper-center; white-space: nowrap; text-overflow: ellipsis;"/>
         </ui:VisualElement>
-
-        <!-- Grid de slots -->
-        <ui:ScrollView name="inventory-scroll" class="inventory__scroll">
-            <!-- Grid container donde se instanciarán los slots dinámicamente -->
-            <ui:VisualElement name="inventory-slots-container" class="inventory__grid" />
-        </ui:ScrollView>
-
-        <!-- Info del slot seleccionado (opcional para futuro) -->
-        <ui:VisualElement name="inventory-footer" class="inventory__footer">
-            <ui:Label name="selected-item-info" text="Click en un slot para seleccionar" class="inventory__info-text" />
+        <ui:VisualElement class="inventory__grid-container">
+            <ui:VisualElement name="inventory-slots-container" class="inventory__grid"/>
         </ui:VisualElement>
+        <ui:VisualElement name="inventory-footer" class="inventory__footer" style="align-content: flex-end; top: 75%; background-color: rgba(15, 15, 18, 0); border-top-width: 0;">
+            <ui:Label name="selected-item-info" text="Click en un slot para seleccionar" class="inventory__info-text" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Fonts/Cinzel-VariableFont_wght.ttf?fileID=12800000&amp;guid=4ca1eb6ded0c145bea0376621b5a2840&amp;type=3#Cinzel-VariableFont_wght&quot;); -unity-font-style: bold;"/>
+        </ui:VisualElement>
+        <ui:Button name="inventory-close-btn" text="" class="close-button" style="width: 40px; position: absolute; top: 13px; left: 379px; background-color: rgba(192, 57, 43, 0); border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
     </ui:VisualElement>
 </ui:UXML>

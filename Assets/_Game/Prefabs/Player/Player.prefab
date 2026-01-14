@@ -224,6 +224,7 @@ MonoBehaviour:
   characterController: {fileID: 6354411524563203234}
   speed: 5
   rotationSpeed: 10
+  interactionRange: 5
 --- !u!114 &8887672228679079423
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,7 +287,7 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
-  inventorySize: 20
+  inventorySize: 64
 --- !u!95 &1200909131278671749
 Animator:
   serializedVersion: 7
@@ -415,6 +416,8 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  completedQuestsCSV: 
+  currentChainIndex: 0
 --- !u!1001 &5779480877219729888
 PrefabInstance:
   m_ObjectHideFlags: 0

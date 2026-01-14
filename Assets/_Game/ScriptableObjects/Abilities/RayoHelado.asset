@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityID: 3
   abilityName: Rayo Helado
   description: Dispara un rayo de hielo
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: de9cd4fe26bbc45f592db84b7a44f926, type: 3}
   manaCost: 15
   cooldownTime: 2
   baseDamage: 20

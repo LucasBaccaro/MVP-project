@@ -9925,7 +9925,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0df6da28d1f094dc09d820e17b19abe1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.UI.QuestLogUI
-  toggleKey: 106
 --- !u!114 &817466011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12332,6 +12331,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7016244ac06324793a3d095c304647df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Game.UI.AbilityBarUI
+  buttonTemplate: {fileID: 9197481963319205126, guid: 8a07dce446101468ebcb9c035431b478, type: 3}
 --- !u!114 &1063517951
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24723,6 +24723,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InventoryUI
   toggleKey: 105
+  slotTemplate: {fileID: 9197481963319205126, guid: 07e057f5afcc445e9bb95825cf10f323, type: 3}
 --- !u!114 &2101638308
 MonoBehaviour:
   m_ObjectHideFlags: 0

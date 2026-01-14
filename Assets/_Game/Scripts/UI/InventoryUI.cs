@@ -16,12 +16,14 @@ namespace Game.UI
         [Header("Controls")]
         public KeyCode toggleKey = KeyCode.I;
 
+        [Header("UI References")]
+        [SerializeField] private VisualTreeAsset slotTemplate;
+
         private UIDocument uiDocument;
         private VisualElement inventoryPanel;
         private VisualElement slotsContainer;
         private Label selectedItemInfo;
         private Button closeButton;
-        private VisualTreeAsset slotTemplate;
 
         private List<VisualElement> slotElements = new List<VisualElement>();
         private PlayerInventory playerInventory;
@@ -61,11 +63,9 @@ namespace Game.UI
                 closeButton.clicked += CloseInventory;
             }
 
-            // Cargar template del slot desde Resources
-            slotTemplate = Resources.Load<VisualTreeAsset>("UI/GameWorld/UXML/InventorySlot");
             if (slotTemplate == null)
             {
-                Debug.LogError("[InventoryUI] No se pudo cargar el template 'InventorySlot' desde Resources! Asegúrate de que esté en Assets/Resources/UI/GameWorld/UXML/");
+                Debug.LogError("[InventoryUI] Slot Template no asignado! Asigna el VisualTreeAsset en el Inspector.");
             }
 
             // Ocultar panel al inicio

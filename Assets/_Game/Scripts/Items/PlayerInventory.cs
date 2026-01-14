@@ -42,7 +42,7 @@ public struct InventorySlot : IEquatable<InventorySlot>
 public class PlayerInventory : NetworkBehaviour
 {
     [Header("Inventory Settings")]
-    [SerializeField] private int inventorySize = 20;
+    [SerializeField] private int inventorySize = 64;
 
     // SyncList sincroniza automáticamente del servidor a todos los clientes
     public readonly SyncList<InventorySlot> inventory = new SyncList<InventorySlot>();

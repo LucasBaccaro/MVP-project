@@ -12,9 +12,11 @@ namespace Game.UI
     [RequireComponent(typeof(UIDocument))]
     public class AbilityBarUI : MonoBehaviour
     {
+        [Header("UI References")]
+        [SerializeField] private VisualTreeAsset buttonTemplate;
+
         private UIDocument uiDocument;
         private VisualElement buttonsContainer;
-        private VisualTreeAsset buttonTemplate;
 
         private PlayerCombat playerCombat;
         private List<AbilityButton> abilityButtons = new List<AbilityButton>();
@@ -61,17 +63,10 @@ namespace Game.UI
                 Debug.Log("[AbilityBarUI] Buttons container found");
             }
 
-            // Cargar template del botón desde Resources
-            Debug.Log("[AbilityBarUI] Loading template from Resources/UI/GameWorld/UXML/AbilityButton");
-            buttonTemplate = Resources.Load<VisualTreeAsset>("UI/GameWorld/UXML/AbilityButton");
-
             if (buttonTemplate == null)
             {
-                Debug.LogError("[AbilityBarUI] No se pudo cargar el template 'AbilityButton' desde Resources! Asegúrate de que esté en Assets/Resources/UI/GameWorld/UXML/");
-            }
-            else
-            {
-                Debug.Log("[AbilityBarUI] Template loaded successfully");
+                Debug.LogError("[AbilityBarUI] Button Template no asignado! Asigna el VisualTreeAsset en el Inspector.");
+                return;
             }
 
             // Inicializar PlayerCombat
@@ -159,17 +154,15 @@ namespace Game.UI
             buttonsContainer.Clear();
             abilityButtons.Clear();
 
-            // Crear botón para cada habilidad
-            for (int i = 0; i < playerCombat.abilities.Count; i++)
-            {
-                AbilityData ability = playerCombat.abilities[i];
-                if (ability == null)
-                {
-                    Debug.LogWarning($"[AbilityBarUI] Ability at index {i} is NULL, skipping");
-                    continue;
-                }
+            // SIEMPRE crear 6 slots
+            const int TOTAL_SLOTS = 6;
 
-                Debug.Log($"[AbilityBarUI] Creating button for ability: {ability.abilityName}");
+            for (int i = 0; i < TOTAL_SLOTS; i++)
+            {
+                // Obtener habilidad si existe (null si el slot está vacío)
+                AbilityData ability = (i < playerCombat.abilities.Count) ? playerCombat.abilities[i] : null;
+
+                Debug.Log($"[AbilityBarUI] Creating slot {i + 1}/6 - {(ability != null ? ability.abilityName : "Empty")}");
 
                 // Instanciar template
                 TemplateContainer buttonInstance = buttonTemplate.Instantiate();
@@ -183,22 +176,14 @@ namespace Game.UI
 
                 // Añadir al contenedor
                 buttonsContainer.Add(buttonInstance);
-                Debug.Log($"[AbilityBarUI] Button instance added to container for {ability.abilityName}");
 
-                // Verificar el tamaño del botón
-                Debug.Log($"[AbilityBarUI] Button {i} - Width: {buttonRoot.resolvedStyle.width}, Height: {buttonRoot.resolvedStyle.height}");
-                Debug.Log($"[AbilityBarUI] Button {i} - Position: ({buttonRoot.resolvedStyle.left}, {buttonRoot.resolvedStyle.top})");
-                Debug.Log($"[AbilityBarUI] Button {i} - Display: {buttonRoot.resolvedStyle.display}");
-
-                // Crear wrapper AbilityButton
+                // Crear wrapper AbilityButton (funciona con ability null para slots vacíos)
                 AbilityButton abilityButton = new AbilityButton();
                 abilityButton.Initialize(buttonRoot, ability, i, this);
                 abilityButtons.Add(abilityButton);
             }
 
-            Debug.Log($"[AbilityBarUI] {abilityButtons.Count} habilidades inicializadas y visibles");
-            Debug.Log($"[AbilityBarUI] Container position: ({buttonsContainer.resolvedStyle.left}, {buttonsContainer.resolvedStyle.top}, {buttonsContainer.resolvedStyle.bottom})");
-            Debug.Log($"[AbilityBarUI] Container size: {buttonsContainer.resolvedStyle.width}x{buttonsContainer.resolvedStyle.height}");
+            Debug.Log($"[AbilityBarUI] {TOTAL_SLOTS} slots inicializados ({playerCombat.abilities.Count} con habilidades)");
         }
 
         /// <summary>
@@ -242,11 +227,25 @@ namespace Game.UI
                 button.UpdateButton();
             }
 
-            // Hotkeys (1, 2, 3, 4)
-            if (Input.GetKeyDown(KeyCode.Alpha1)) OnAbilityButtonClicked(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) OnAbilityButtonClicked(1);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) OnAbilityButtonClicked(2);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) OnAbilityButtonClicked(3);
+            // Hotkeys (1, 2, 3, 4, 5, 6) - Solo funcionan si el slot tiene habilidad
+            if (Input.GetKeyDown(KeyCode.Alpha1)) TryUseAbilityAtSlot(0);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) TryUseAbilityAtSlot(1);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) TryUseAbilityAtSlot(2);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) TryUseAbilityAtSlot(3);
+            if (Input.GetKeyDown(KeyCode.Alpha5)) TryUseAbilityAtSlot(4);
+            if (Input.GetKeyDown(KeyCode.Alpha6)) TryUseAbilityAtSlot(5);
+        }
+
+        /// <summary>
+        /// Intenta usar habilidad en el slot especificado (solo si hay habilidad asignada)
+        /// </summary>
+        private void TryUseAbilityAtSlot(int slotIndex)
+        {
+            // Verificar que el slot tenga una habilidad asignada
+            if (playerCombat != null && slotIndex < playerCombat.abilities.Count)
+            {
+                OnAbilityButtonClicked(slotIndex);
+            }
         }
 
         private void OnDestroy()
@@ -272,6 +271,7 @@ namespace Game.UI
     public class AbilityButton
     {
         private VisualElement buttonRoot;
+        private VisualElement backgroundElement;  // NUEVO: referencia al background
         private VisualElement iconElement;
         private VisualElement cooldownOverlay;
         private Label cooldownText;
@@ -285,7 +285,7 @@ namespace Game.UI
         private bool isOnCooldown;
 
         /// <summary>
-        /// Inicializa el botón con datos de habilidad
+        /// Inicializa el botón con datos de habilidad (puede ser null para slots vacíos)
         /// </summary>
         public void Initialize(VisualElement root, AbilityData abilityData, int index, AbilityBarUI bar)
         {
@@ -295,25 +295,46 @@ namespace Game.UI
             abilityBar = bar;
 
             // Query elementos
+            backgroundElement = root.Q<VisualElement>("ability-background");
             iconElement = root.Q<VisualElement>("ability-icon");
             cooldownOverlay = root.Q<VisualElement>("cooldown-overlay");
             cooldownText = root.Q<Label>("cooldown-text");
             hotkeyText = root.Q<Label>("hotkey-text");
 
-            // Configurar icono (background-image)
-            if (iconElement != null && ability.icon != null)
+            // IMPORTANTE: Asegurar que el background SIEMPRE esté visible
+            if (backgroundElement != null)
             {
-                iconElement.style.backgroundImage = new StyleBackground(ability.icon);
+                backgroundElement.style.display = DisplayStyle.Flex;
+                Debug.Log($"[AbilityButton] Background configurado para slot {index + 1}");
+            }
+            else
+            {
+                Debug.LogError($"[AbilityButton] No se encontró ability-background en slot {index + 1}!");
             }
 
-            // Configurar hotkey (1, 2, 3, 4)
+            // Configurar icono (background-image) solo si hay habilidad
+            if (iconElement != null)
+            {
+                if (ability != null && ability.icon != null)
+                {
+                    iconElement.style.backgroundImage = new StyleBackground(ability.icon);
+                    iconElement.style.display = DisplayStyle.Flex;
+                }
+                else
+                {
+                    // Slot vacío: ocultar icono para que solo se vea el background
+                    iconElement.style.display = DisplayStyle.None;
+                }
+            }
+
+            // Configurar hotkey (1, 2, 3, 4, 5, 6)
             if (hotkeyText != null)
             {
                 hotkeyText.text = (index + 1).ToString();
             }
 
-            // Configurar click callback
-            if (buttonRoot != null)
+            // Configurar click callback solo si hay habilidad
+            if (buttonRoot != null && ability != null)
             {
                 buttonRoot.RegisterCallback<ClickEvent>(evt => abilityBar.OnAbilityButtonClicked(abilityIndex));
             }
@@ -384,6 +405,9 @@ namespace Game.UI
         /// </summary>
         public void UpdateButton()
         {
+            // Solo actualizar si hay una habilidad asignada
+            if (ability == null) return;
+
             if (isOnCooldown)
             {
                 float remainingTime = cooldownEndTime - Time.time;

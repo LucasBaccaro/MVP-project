@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityID: 1
   abilityName: Golpe Pesado
   description: "Un golpe poderoso que consume man\xE1"
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 7fdc3b3ca4b0d4b88a869b77e2712ca6, type: 3}
   manaCost: 10
   cooldownTime: 5
   baseDamage: 25
