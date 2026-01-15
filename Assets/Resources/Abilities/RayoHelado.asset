@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 3
   abilityName: Rayo Helado
-  description: Dispara un rayo de hielo
+  description: "Impacta al objetivo con un rayo de hielo, reduciendo su velocidad de movimiento en un 50%. Daño base: 20."
   icon: {fileID: 21300000, guid: de9cd4fe26bbc45f592db84b7a44f926, type: 3}
   manaCost: 15
   cooldownTime: 2
   baseDamage: 20
   range: 15
-  abilityType: 0
+  abilityType: 3
+  castingType: 1
+  castTime: 1
+  aoeRadius: 0

@@ -55,6 +55,9 @@ namespace Game.Player
         [SyncVar]
         public int damage = 10;
 
+        [SyncVar]
+        public int shieldAmount = 0;
+
         [Header("Regeneration")]
         [SyncVar]
         public float hpRegenRate = 1f;
@@ -268,10 +271,36 @@ namespace Game.Player
         /// Aplica daño al jugador
         /// </summary>
         [Server]
-        public void TakeDamage(int damageAmount, PlayerStats attacker = null)
+        public void TakeDamage(int damage, IEntityStats damageSource)
         {
-            currentHealth = Mathf.Max(0, currentHealth - damageAmount);
-            Debug.Log($"[PlayerStats] Daño recibido: {damageAmount} de {attacker?.name ?? "Desconocido"}. HP restante: {currentHealth}/{maxHealth}");
+            if (currentHealth <= 0) return;
+
+            int remainingDamage = damage;
+
+            // Primero reducir escudo
+            if (shieldAmount > 0)
+            {
+                if (shieldAmount >= remainingDamage)
+                {
+                    shieldAmount -= remainingDamage;
+                    remainingDamage = 0;
+                }
+                else
+                {
+                    remainingDamage -= shieldAmount;
+                    shieldAmount = 0;
+                }
+                Debug.Log($"[PlayerStats][Server] Escudo absorbido. Restante: {shieldAmount}, Daño restante: {remainingDamage}");
+            }
+
+            // Luego reducir vida
+            if (remainingDamage > 0)
+            {
+                currentHealth -= remainingDamage;
+                if (currentHealth < 0) currentHealth = 0;
+            }
+
+            Debug.Log($"[PlayerStats][Server] {gameObject.name} recibió {damage} de daño. Vida actual: {currentHealth}");
 
             if (currentHealth <= 0)
             {
@@ -285,7 +314,19 @@ namespace Game.Player
         [Server]
         public void Heal(int amount)
         {
-            currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
+            if (currentHealth <= 0) return;
+
+            currentHealth += amount;
+            if (currentHealth > maxHealth) currentHealth = maxHealth;
+
+            Debug.Log($"[PlayerStats][Server] {gameObject.name} curado {amount}. Vida actual: {currentHealth}");
+        }
+
+        [Server]
+        public void AddShield(int amount)
+        {
+            shieldAmount += amount;
+            Debug.Log($"[PlayerStats][Server] Escudo añadido: {amount}. Total: {shieldAmount}");
         }
 
         /// <summary>

@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 6
   abilityName: Golpe Sagrado
-  description: "Golpe imbuido con energ\xEDa sagrada"
-  icon: {fileID: 0}
+  description: "Un golpe rápido de energía sagrada que daña al enemigo. Daño base: 12."
+  icon: {fileID: 21300000, guid: add98adb72def4e7ba90429366619d15, type: 3}
   manaCost: 8
   cooldownTime: 2
   baseDamage: 12
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

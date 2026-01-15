@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 23
   abilityName: Castigo Divino
-  description: Invoca la ira divina sobre el enemigo
-  icon: {fileID: 0}
+  description: "Invoca la ira divina sobre el enemigo, dañando a los objetivos en un área pequeña. Daño base: 45. Radio: 2m."
+  icon: {fileID: 21300000, guid: 015408a4180df4b428c5c048f75806da, type: 3}
   manaCost: 30
   cooldownTime: 12
   baseDamage: 45
   range: 15
   abilityType: 0
+  castingType: 1
+  castTime: 1.5
+  aoeRadius: 2

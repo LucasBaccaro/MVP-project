@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 16
   abilityName: Trampa
-  description: Coloca una trampa que dana a los enemigos
-  icon: {fileID: 0}
+  description: "Coloca una trampa en el suelo que daña al primer enemigo que la pise. Daño base: 25."
+  icon: {fileID: 21300000, guid: 4c9d391f2c1034b9fa1a3bbd77bdc9a5, type: 3}
   manaCost: 15
   cooldownTime: 12
   baseDamage: 25
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

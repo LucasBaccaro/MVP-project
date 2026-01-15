@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 10
   abilityName: Grito de Guerra
-  description: Un grito que aumenta el poder de ataque
-  icon: {fileID: 0}
+  description: "Lanza un rugido que inspira a los aliados cercanos, aumentando temporalmente su poder de ataque. (Buff de área)."
+  icon: {fileID: 21300000, guid: bd535475bb66a47018a471e602d042fc, type: 3}
   manaCost: 20
   cooldownTime: 15
   baseDamage: 0
   range: 2
   abilityType: 2
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

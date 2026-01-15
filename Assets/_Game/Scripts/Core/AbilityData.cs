@@ -39,12 +39,30 @@ namespace Game.Core
         [Header("Type")]
         [Tooltip("Tipo de habilidad")]
         public AbilityType abilityType = AbilityType.Damage;
+
+        [Tooltip("Tipo de cast")]
+        public CastingType castingType = CastingType.Instant;
+
+        [Tooltip("Tiempo de cast en segundos")]
+        public float castTime = 0f;
+
+        [Tooltip("Radio de efecto para daño en área (0 = single target)")]
+        public float aoeRadius = 0f;
+    }
+
+    public enum CastingType
+    {
+        Instant,    // Lanzamiento instantáneo
+        Casting,    // Requiere quedarse quieto X segundos
+        Channel,    // Efecto continuo mientras dura el cast
+        Movement    // Se puede lanzar en movimiento (como instantáneo pero explícito)
     }
 
     public enum AbilityType
     {
         Damage,     // Hace daño
         Heal,       // Cura
-        Buff        // Mejora stats (futuro)
+        Buff,       // Mejora stats (futuro)
+        Debuff      // Reduce stats o aplica efectos negativos (futuro)
     }
 }

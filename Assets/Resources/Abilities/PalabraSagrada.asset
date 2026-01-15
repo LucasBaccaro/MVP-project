@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 7
   abilityName: Palabra Sagrada
-  description: "Palabra de poder que da\xF1a a los enemigos"
-  icon: {fileID: 0}
+  description: "Una palabra de poder sagrado que inflige daño directo. Daño base: 20."
+  icon: {fileID: 21300000, guid: 8f40daf91306046ad941e8bfa02e1161, type: 3}
   manaCost: 15
   cooldownTime: 4
   baseDamage: 20
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

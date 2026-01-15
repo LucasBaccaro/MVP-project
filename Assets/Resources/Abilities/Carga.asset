@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 9
   abilityName: Carga
-  description: Carga hacia el enemigo causando gran impacto
-  icon: {fileID: 0}
+  description: "Embiste al enemigo con gran fuerza, cerrando la distancia rápidamente. Daño base: 20."
+  icon: {fileID: 21300000, guid: bd535475bb66a47018a471e602d042fc, type: 3}
   manaCost: 10
   cooldownTime: 8
   baseDamage: 20
   range: 2
   abilityType: 0
+  castingType: 3
+  castTime: 0
+  aoeRadius: 0

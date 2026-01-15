@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 11
   abilityName: Tajo Giratorio
-  description: Gira con la espada golpeando a todos alrededor
-  icon: {fileID: 0}
+  description: "Gira violentamente sobre tu eje, golpeando a todos los enemigos a tu alrededor. Daño base: 30. Radio: 3m."
+  icon: {fileID: 21300000, guid: 0677d89b8c7724c4fb49b5e2a2b2b7d9, type: 3}
   manaCost: 15
   cooldownTime: 6
   baseDamage: 30
   range: 2
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 3

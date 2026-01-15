@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 19
   abilityName: Lluvia de Flechas
-  description: Dispara flechas al cielo que caen sobre el area enemiga
-  icon: {fileID: 0}
+  description: "Lanza una descarga masiva de flechas sobre un área amplia. Daño base: 50. Radio: 5m."
+  icon: {fileID: 21300000, guid: 8b30ac1d0224f498097c57bff7141661, type: 3}
   manaCost: 35
   cooldownTime: 15
   baseDamage: 50
   range: 15
   abilityType: 0
+  castingType: 1
+  castTime: 2.5
+  aoeRadius: 5

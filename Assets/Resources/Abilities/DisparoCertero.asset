@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 18
   abilityName: Disparo Certero
-  description: Un disparo preciso que causa dano critico
-  icon: {fileID: 0}
+  description: "Un disparo meticuloso y potente que inflige gran daño. Daño base: 40."
+  icon: {fileID: 21300000, guid: 443b7ebefa4254a3ba710c51990f2366, type: 3}
   manaCost: 20
   cooldownTime: 8
   baseDamage: 40
   range: 15
   abilityType: 0
+  castingType: 1
+  castTime: 2
+  aoeRadius: 0

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 0
   abilityName: "Ataque B\xE1sico"
-  description: "Golpe b\xE1sico con el arma"
+  description: "Ataque rápido y básico con tu arma de combate. Daño base: 10."
   icon: {fileID: 21300000, guid: de9f614bea49847b6a54fafe8212a65a, type: 3}
   manaCost: 0
   cooldownTime: 0

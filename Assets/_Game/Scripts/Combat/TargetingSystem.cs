@@ -248,14 +248,14 @@ namespace Game.Combat
             Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
 
-            Debug.Log($"[TargetingSystem] Raycast desde mouse - targetableLayers={targetableLayers.value}");
-
-            if (Physics.Raycast(ray, out hit, maxTargetingDistance, targetableLayers))
+            // Usar una máscara combinada para detectar objetivos Y el suelo/obstáculos
+            LayerMask combinedMask = targetableLayers | losBlockingLayers;
+            if (Physics.Raycast(ray, out hit, maxTargetingDistance, combinedMask))
             {
                 Debug.Log($"[TargetingSystem] Raycast HIT: {hit.collider.gameObject.name}");
                 NetworkIdentity targetIdentity = hit.collider.GetComponentInParent<NetworkIdentity>();
 
-                if (targetIdentity != null && targetIdentity != netIdentity)
+                if (targetIdentity != null)
                 {
                     // Verificar si está vivo
                     var targetStats = targetIdentity.GetComponent<Game.Core.IEntityStats>();
@@ -264,25 +264,34 @@ namespace Game.Combat
                         Debug.Log("[TargetingSystem] El objetivo está muerto");
                         return;
                     }
-
+ 
                     // Ejecutar la habilidad en el objetivo
                     Debug.Log($"[TargetingSystem] >>> EJECUTANDO habilidad en {targetIdentity.gameObject.name}");
                     playerCombat.ExecuteSelectedAbilityOnTarget(targetIdentity);
-
+ 
                     // También actualizar el target actual
                     SelectTarget(targetIdentity);
                 }
                 else
                 {
-                    Debug.Log($"[TargetingSystem] Click en objetivo inválido o en self - targetIdentity={targetIdentity != null}, isSelf={targetIdentity == netIdentity}");
-                    // Cancelar la habilidad si clickea en lugar inválido
-                    playerCombat.CancelAbilitySelection();
+                    Debug.Log($"[TargetingSystem] Click en objeto sin NetworkIdentity - Verificando AoE");
+                    
+                    // Si es AoE, permitir ejecutar en posición
+                    if (playerCombat.HasSelectedAbility && playerCombat.SelectedAbility.aoeRadius > 0.1f)
+                    {
+                        Debug.Log("[TargetingSystem] Ejecutando AoE en posición del click");
+                        playerCombat.ExecuteSelectedAbilityAtPosition(hit.point);
+                    }
+                    else
+                    {
+                        // Cancelar la habilidad si clickea en lugar inválido
+                        playerCombat.CancelAbilitySelection();
+                    }
                 }
             }
             else
             {
-                Debug.Log("[TargetingSystem] Raycast no detectó objetivo válido - cancelando habilidad");
-                // Click en el suelo o vacío cancela la habilidad
+                Debug.Log("[TargetingSystem] Raycast no detectó nada (vacío) - cancelando habilidad");
                 playerCombat.CancelAbilitySelection();
             }
         }
@@ -313,13 +322,6 @@ namespace Game.Combat
                 
                 if (targetIdentity != null)
                 {
-                    // No podemos targetearnos a nosotros mismos
-                    if (targetIdentity == netIdentity)
-                    {
-                        Debug.Log("[TargetingSystem] Click en self (ignorado)");
-                        return;
-                    }
-
                     SelectTarget(targetIdentity);
                 }
                 else

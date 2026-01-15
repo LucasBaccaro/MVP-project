@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 22
   abilityName: Luz Divina
-  description: Un rayo de luz sagrada que dana a los enemigos
-  icon: {fileID: 0}
+  description: "Un rayo de luz pura que castiga al enemigo. Daño base: 22."
+  icon: {fileID: 21300000, guid: 91117d933aec149faa5db78d24a2d4e6, type: 3}
   manaCost: 15
   cooldownTime: 4
   baseDamage: 22
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

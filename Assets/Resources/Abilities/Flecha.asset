@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 4
   abilityName: Flecha
-  description: "Dispara una flecha r\xE1pida"
-  icon: {fileID: 0}
+  description: "Un disparo básico y rápido con arco. Daño base: 15."
+  icon: {fileID: 21300000, guid: 162ae0c5f6525441c84a338d597ea68f, type: 3}
   manaCost: 5
   cooldownTime: 1
   baseDamage: 15
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

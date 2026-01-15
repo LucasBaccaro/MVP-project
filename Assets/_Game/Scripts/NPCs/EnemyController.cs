@@ -162,7 +162,7 @@ namespace Game.NPCs
             if (playerStats != null)
             {
                 Debug.Log($"[EnemyController] {data.npcName} ataca a {targetTransform.name} por {data.damage} daño.");
-                playerStats.TakeDamage(data.damage);
+                playerStats.TakeDamage(data.damage, stats);
             }
         }
 

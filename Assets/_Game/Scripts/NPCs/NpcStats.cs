@@ -37,12 +37,17 @@ namespace Game.NPCs
         }
 
         [Server]
-        public void TakeDamage(int damage, PlayerStats attacker)
+        public void TakeDamage(int damage, IEntityStats attacker)
         {
             if (currentHealth <= 0) return;
 
             currentHealth -= damage;
-            lastAttacker = attacker;
+            
+            // Verificamos si el atacante es un jugador para el seguimiento de XP
+            if (attacker is PlayerStats playerAttacker)
+            {
+                lastAttacker = playerAttacker;
+            }
 
             if (currentHealth <= 0)
             {

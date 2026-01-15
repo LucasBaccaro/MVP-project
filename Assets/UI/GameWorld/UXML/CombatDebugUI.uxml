@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ui="UnityEngine.UIElements"
+    xmlns:uie="UnityEditor.UIElements"
+    xsi:noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd"
+>
+    <ui:Style src="../USS/CombatDebugUI.uss" />
+    <ui:VisualElement class="combat-debug-container" name="combat-debug-root">
+        <ui:Label text="COMBAT DEBUG" class="debug-title" />
+        
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Selected:" class="info-label" />
+            <ui:Label text="None" name="selected-ability" class="info-value" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Ability Type:" class="info-label" />
+            <ui:Label text="None" name="ability-type-value" class="info-value" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Type:" class="info-label" />
+            <ui:Label text="IDLE" name="cast-type-badge" class="status-badge status-idle" />
+        </ui:VisualElement>
+
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Base Damage/Heal:" class="info-label" />
+            <ui:Label text="0" name="base-damage-value" class="info-value" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Target:" class="info-label" />
+            <ui:Label text="None" name="combat-target" class="info-value" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="info-row">
+            <ui:Label text="Cast Time:" class="info-label" />
+            <ui:Label text="0.0s" name="cast-time-value" class="info-value" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="info-row">
+            <ui:Label text="AoE Radius:" class="info-label" />
+            <ui:Label text="0m" name="aoe-radius-value" class="info-value" />
+        </ui:VisualElement>
+        
+        <ui:VisualElement class="cast-progress-container" name="progress-container">
+            <ui:VisualElement class="cast-progress-fill" name="progress-fill" />
+        </ui:VisualElement>
+
+        <ui:Label text="Damage target with ice" name="ability-description" class="debug-description" />
+
+    </ui:VisualElement>
+</ui:UXML>

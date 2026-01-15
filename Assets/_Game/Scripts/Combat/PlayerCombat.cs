@@ -30,6 +30,20 @@ namespace Game.Combat
         public int SelectedAbilityIndex => selectedAbilityIndex;
         public bool HasSelectedAbility => selectedAbilityIndex >= 0;
 
+        [Header("Casting State")]
+        [SyncVar]
+        private int castingAbilityIndex = -1;
+        [SyncVar]
+        private float castTimer = 0f;
+        [SyncVar]
+        private NetworkIdentity castTarget;
+        private Vector3 castPosition;
+        private bool isCastingAtPosition;
+        
+        public bool IsCasting => castingAbilityIndex >= 0;
+        public float CastProgress => castingAbilityIndex >= 0 ? 1f - (castTimer / GetAbility(castingAbilityIndex).castTime) : 0f;
+        public AbilityData SelectedAbility => selectedAbilityIndex >= 0 ? GetAbility(selectedAbilityIndex) : null;
+
         // Eventos para UI
         public event System.Action<int, float> OnCooldownStarted;
         public event System.Action<int> OnCooldownReady;
@@ -70,6 +84,14 @@ namespace Game.Combat
 
         private void Update()
         {
+            // Actualizar cooldowns y casteo siempre en el servidor para todos,
+            // y en el cliente solo para el jugador local (para el HUD/Debug)
+            if (isServer || isLocalPlayer)
+            {
+                UpdateCooldowns();
+                UpdateCasting();
+            }
+
             // Solo el jugador local procesa input
             if (!isLocalPlayer) return;
 
@@ -84,9 +106,73 @@ namespace Game.Combat
             {
                 CancelAbilitySelection();
             }
+        }
 
-            // Actualizar cooldowns
-            UpdateCooldowns();
+        private void UpdateCasting()
+        {
+            if (!isServer) return;
+            if (!IsCasting) return;
+
+            castTimer -= Time.deltaTime;
+
+            if (castTimer <= 0)
+            {
+                FinishCasting();
+            }
+        }
+
+        [Server]
+        private void FinishCasting()
+        {
+            if (castingAbilityIndex < 0) return;
+
+            AbilityData ability = GetAbility(castingAbilityIndex);
+            if (ability != null)
+            {
+                if (castTarget != null)
+                {
+                    ExecuteAbility(ability, castTarget);
+                }
+                else if (ability.aoeRadius > 0.1f)
+                {
+                    ExecuteAbilityAtPosition(ability, castPosition);
+                }
+
+                // Iniciar cooldown después de completar el cast
+                StartCooldown(castingAbilityIndex, ability.cooldownTime);
+
+                // Notificar efectos visuales
+                Vector3 effectPos = castTarget != null ? castTarget.transform.position : castPosition;
+                RpcPlayAbilityEffect(castingAbilityIndex, effectPos);
+            }
+
+            // Reset casting state
+            castingAbilityIndex = -1;
+            castTarget = null;
+            isCastingAtPosition = false;
+        }
+
+        /// <summary>
+        /// Cancela el casteo actual (llamado por servidor o movimiento)
+        /// </summary>
+        [Server]
+        public void CancelCast()
+        {
+            if (!IsCasting) return;
+
+            Debug.Log($"[PlayerCombat][Server] Casteo de {GetAbility(castingAbilityIndex)?.abilityName} CANCELADO");
+            castingAbilityIndex = -1;
+            castTarget = null;
+            castTimer = 0f;
+        }
+
+        /// <summary>
+        /// Comando para que el cliente solicite cancelar su propio casteo
+        /// </summary>
+        [Command]
+        public void CmdCancelCast()
+        {
+            CancelCast();
         }
 
         /// <summary>
@@ -220,13 +306,32 @@ namespace Game.Combat
                 return;
             }
 
-            AbilityData ability = GetSelectedAbility();
-            Debug.Log($"[PlayerCombat] >>> EJECUTANDO habilidad {ability?.abilityName ?? "NULL"} en {target.gameObject.name}");
-
             // Usar la habilidad seleccionada
             TryUseAbility(selectedAbilityIndex, target);
 
             // Cancelar selección después de usar (comportamiento Argentum)
+            CancelAbilitySelection();
+        }
+
+        /// <summary>
+        /// Ejecuta la habilidad seleccionada en una posición del suelo (llamado desde TargetingSystem)
+        /// </summary>
+        public void ExecuteSelectedAbilityAtPosition(Vector3 position)
+        {
+            if (!HasSelectedAbility) return;
+
+            // Validaciones locales
+            AbilityData ability = SelectedAbility;
+            if (ability == null || ability.aoeRadius <= 0.1f)
+            {
+                CancelAbilitySelection();
+                return;
+            }
+
+            // Enviar al servidor
+            CmdUseAbility(selectedAbilityIndex, null, position);
+
+            // Cancelar selección después de usar
             CancelAbilitySelection();
         }
 
@@ -242,7 +347,7 @@ namespace Game.Combat
             }
 
             // Enviar comando al servidor con el objetivo
-            CmdUseAbility(abilityIndex, target);
+            CmdUseAbility(abilityIndex, target, target.transform.position);
         }
 
         /// <summary>
@@ -323,22 +428,56 @@ namespace Game.Combat
         /// Command: Cliente solicita usar habilidad
         /// </summary>
         [Command]
-        private void CmdUseAbility(int abilityIndex, NetworkIdentity clientTarget)
+        private void CmdUseAbility(int abilityIndex, NetworkIdentity clientTarget, Vector3 targetPosition)
         {
             // Validaciones del servidor (autoridad)
             if (!ValidateAbilityServer(abilityIndex, clientTarget, out AbilityData ability, out NetworkIdentity target))
             {
+                // Si no hay target pero la habilidad es AoE, podemos usar la posición
+                if (ability != null && ability.aoeRadius > 0.1f)
+                {
+                    // Iniciar casteo o ejecución usando la posición
+                    if (ability.castingType == CastingType.Casting || ability.castingType == CastingType.Channel)
+                    {
+                        StartCasting(abilityIndex, null, ability.castTime, targetPosition);
+                    }
+                    else
+                    {
+                        ExecuteAbilityAtPosition(ability, targetPosition);
+                        StartCooldown(abilityIndex, ability.cooldownTime);
+                        RpcPlayAbilityEffect(abilityIndex, targetPosition);
+                    }
+                }
                 return;
             }
 
-            // Ejecutar habilidad
+            // Si la habilidad tiene tiempo de casteo, iniciar casteo
+            if (ability.castingType == CastingType.Casting || ability.castingType == CastingType.Channel)
+            {
+                StartCasting(abilityIndex, clientTarget, ability.castTime, targetPosition);
+                return;
+            }
+
+            // Ejecutar habilidad instantánea
             ExecuteAbility(ability, target);
 
             // Iniciar cooldown en el servidor
             StartCooldown(abilityIndex, ability.cooldownTime);
 
             // Notificar a todos los clientes para efectos visuales
-            RpcPlayAbilityEffect(abilityIndex, target.transform.position);
+            RpcPlayAbilityEffect(abilityIndex, target != null ? target.transform.position : targetPosition);
+        }
+
+        [Server]
+        private void StartCasting(int abilityIndex, NetworkIdentity target, float time, Vector3 position = default)
+        {
+            castingAbilityIndex = abilityIndex;
+            castTarget = target;
+            castPosition = position;
+            castTimer = time;
+            isCastingAtPosition = target == null;
+
+            Debug.Log($"[PlayerCombat][Server] Iniciando casteo de {GetAbility(abilityIndex).abilityName} ({time}s) {(target != null ? "en " + target.name : "en posición " + position)}");
         }
 
         /// <summary>
@@ -428,6 +567,8 @@ namespace Game.Combat
         [Server]
         private void ExecuteAbility(AbilityData ability, NetworkIdentity target)
         {
+            if (target == null) return;
+
             // Gastar maná
             playerStats.SpendMana(ability.manaCost);
 
@@ -437,52 +578,220 @@ namespace Game.Combat
                 case AbilityType.Damage:
                     ApplyDamage(ability, target);
                     break;
-
                 case AbilityType.Heal:
                     ApplyHeal(ability, target);
                     break;
-
                 case AbilityType.Buff:
-                    Debug.Log($"[PlayerCombat][Server] Buffs no implementados aún");
+                    ApplyBuff(ability, target);
+                    break;
+                case AbilityType.Debuff:
+                    ApplyDebuff(ability, target);
                     break;
             }
 
             Debug.Log($"[PlayerCombat][Server] {ability.abilityName} ejecutado en {target.gameObject.name}");
         }
 
-        /// <summary>
-        /// Aplica daño al objetivo
-        /// </summary>
+        [Server]
+        private void ExecuteAbilityAtPosition(AbilityData ability, Vector3 position)
+        {
+            // Solo se puede ejecutar en posición si es AoE
+            if (ability.aoeRadius <= 0.1f) return;
+
+            // Gastar maná
+            playerStats.SpendMana(ability.manaCost);
+
+            switch (ability.abilityType)
+            {
+                case AbilityType.Damage:
+                    ApplyAoEDamage(ability, position);
+                    break;
+                case AbilityType.Heal:
+                    ApplyAoEHeal(ability, position);
+                    break;
+                case AbilityType.Buff:
+                    ApplyAoEBuff(ability, position);
+                    break;
+                case AbilityType.Debuff:
+                    ApplyAoEDebuff(ability, position);
+                    break;
+            }
+
+            Debug.Log($"[PlayerCombat][Server] {ability.abilityName} ejecutado en posición {position}");
+        }
+
+        #region Effect Application Logic
+
+        // --- DAMAGE ---
         [Server]
         private void ApplyDamage(AbilityData ability, NetworkIdentity target)
         {
-            IEntityStats targetStats = target.GetComponent<IEntityStats>();
-            if (targetStats != null)
+            if (ability.aoeRadius > 0.1f)
+                ApplyAoEDamage(ability, target.transform.position);
+            else
+                ApplyDamageEffect(ability, target);
+        }
+
+        [Server]
+        private void ApplyAoEDamage(AbilityData ability, Vector3 position)
+        {
+            int totalDamage = ability.baseDamage + playerStats.damage;
+            LayerMask mask = targetingSystem != null ? targetingSystem.targetableLayers : LayerMask.GetMask("Player", "Enemy");
+            Collider[] colliders = Physics.OverlapSphere(position, ability.aoeRadius, mask);
+            HashSet<IEntityStats> hitTargets = new HashSet<IEntityStats>();
+
+            foreach (var col in colliders)
             {
-                int totalDamage = ability.baseDamage + playerStats.damage;
-
-                // Pasar 'playerStats' como atacante
-                targetStats.TakeDamage(totalDamage, playerStats);
-
-                Debug.Log($"[PlayerCombat][Server] {gameObject.name} hizo {totalDamage} de daño a {targetStats.EntityName}");
+                IEntityStats entity = col.GetComponentInParent<IEntityStats>();
+                if (entity != null && !hitTargets.Contains(entity))
+                {
+                    NetworkBehaviour entityNB = entity as NetworkBehaviour;
+                    if (entityNB != null && entityNB.netId != playerStats.netId) // No autodaño
+                    {
+                        entity.TakeDamage(totalDamage, playerStats);
+                        hitTargets.Add(entity);
+                    }
+                }
             }
         }
 
-        /// <summary>
-        /// Aplica curación al objetivo
-        /// </summary>
+        [Server]
+        private void ApplyDamageEffect(AbilityData ability, NetworkIdentity target)
+        {
+            IEntityStats stats = target.GetComponent<IEntityStats>();
+            if (stats != null)
+            {
+                int totalDamage = ability.baseDamage + playerStats.damage;
+                stats.TakeDamage(totalDamage, playerStats);
+            }
+        }
+
+        // --- HEAL ---
         [Server]
         private void ApplyHeal(AbilityData ability, NetworkIdentity target)
         {
-            PlayerStats targetStats = target.GetComponent<PlayerStats>();
-            if (targetStats != null)
-            {
-                int healAmount = ability.baseDamage;
-                targetStats.Heal(healAmount);
+            if (ability.aoeRadius > 0.1f)
+                ApplyAoEHeal(ability, target.transform.position);
+            else
+                ApplyHealEffect(ability, target);
+        }
 
-                Debug.Log($"[PlayerCombat][Server] {gameObject.name} curó {healAmount} HP a {target.gameObject.name}");
+        [Server]
+        private void ApplyAoEHeal(AbilityData ability, Vector3 position)
+        {
+            LayerMask mask = targetingSystem != null ? targetingSystem.targetableLayers : LayerMask.GetMask("Player", "Enemy");
+            Collider[] colliders = Physics.OverlapSphere(position, ability.aoeRadius, mask);
+            HashSet<PlayerStats> hitTargets = new HashSet<PlayerStats>();
+
+            foreach (var col in colliders)
+            {
+                PlayerStats targetStats = col.GetComponentInParent<PlayerStats>();
+                if (targetStats != null && !hitTargets.Contains(targetStats))
+                {
+                    targetStats.Heal(ability.baseDamage);
+                    hitTargets.Add(targetStats);
+                }
             }
         }
+
+        [Server]
+        private void ApplyHealEffect(AbilityData ability, NetworkIdentity target)
+        {
+            PlayerStats stats = target.GetComponent<PlayerStats>();
+            if (stats != null)
+            {
+                stats.Heal(ability.baseDamage);
+            }
+        }
+
+        // --- BUFF ---
+        [Server]
+        private void ApplyBuff(AbilityData ability, NetworkIdentity target)
+        {
+            if (ability.aoeRadius > 0.1f)
+                ApplyAoEBuff(ability, target.transform.position);
+            else
+                ApplyBuffEffect(ability, target);
+        }
+
+        [Server]
+        private void ApplyAoEBuff(AbilityData ability, Vector3 position)
+        {
+            LayerMask mask = targetingSystem != null ? targetingSystem.targetableLayers : LayerMask.GetMask("Player", "Enemy");
+            Collider[] colliders = Physics.OverlapSphere(position, ability.aoeRadius, mask);
+            HashSet<NetworkIdentity> hitTargets = new HashSet<NetworkIdentity>();
+
+            foreach (var col in colliders)
+            {
+                NetworkIdentity target = col.GetComponentInParent<NetworkIdentity>();
+                if (target != null && !hitTargets.Contains(target))
+                {
+                    ApplyBuffEffect(ability, target);
+                    hitTargets.Add(target);
+                }
+            }
+        }
+
+        [Server]
+        private void ApplyBuffEffect(AbilityData ability, NetworkIdentity target)
+        {
+            if (target == null) return;
+            // TODO: Implementar sistema de buffs persistentes
+            Debug.Log($"[PlayerCombat][Server] BUFF {ability.abilityName} aplicado a {target.name}");
+        }
+
+        // --- DEBUFF ---
+        [Server]
+        private void ApplyDebuff(AbilityData ability, NetworkIdentity target)
+        {
+            if (ability.aoeRadius > 0.1f)
+                ApplyAoEDebuff(ability, target.transform.position);
+            else
+                ApplyDebuffEffect(ability, target);
+        }
+
+        [Server]
+        private void ApplyAoEDebuff(AbilityData ability, Vector3 position)
+        {
+            LayerMask mask = targetingSystem != null ? targetingSystem.targetableLayers : LayerMask.GetMask("Player", "Enemy");
+            Collider[] colliders = Physics.OverlapSphere(position, ability.aoeRadius, mask);
+            HashSet<NetworkIdentity> hitTargets = new HashSet<NetworkIdentity>();
+
+            foreach (var col in colliders)
+            {
+                NetworkIdentity target = col.GetComponentInParent<NetworkIdentity>();
+                if (target != null && !hitTargets.Contains(target))
+                {
+                    ApplyDebuffEffect(ability, target);
+                    hitTargets.Add(target);
+                }
+            }
+        }
+
+        [Server]
+        private void ApplyDebuffEffect(AbilityData ability, NetworkIdentity target)
+        {
+            if (target == null) return;
+
+            // Aplicar daño si la habilidad lo tiene
+            if (ability.baseDamage > 0)
+            {
+                IEntityStats targetStats = target.GetComponent<IEntityStats>();
+                if (targetStats != null)
+                {
+                    int totalDamage = ability.baseDamage + playerStats.damage;
+                    targetStats.TakeDamage(totalDamage, playerStats);
+                }
+            }
+
+            PlayerController targetController = target.GetComponent<PlayerController>();
+            if (targetController != null)
+            {
+                targetController.ApplySlow(0.5f, 3f);
+                Debug.Log($"[PlayerCombat][Server] SLOW de {ability.abilityName} aplicado a {target.name}");
+            }
+        }
+        #endregion
 
         /// <summary>
         /// ClientRpc: Reproducir efectos visuales/sonoros

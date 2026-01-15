@@ -1,0 +1,88 @@
+.combat-debug-container {
+    position: absolute;
+    top: 50px;
+    right: 50px;
+    width: 300px;
+    background-color: #000000; /* Solid Black */
+    border-radius: 8px;
+    border-width: 2px;
+    border-color: #ffffff; /* White border for contrast */
+    padding: 20px;
+    flex-direction: column;
+}
+
+.debug-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: #ffffff; /* Pure White */
+    margin-bottom: 12px;
+    border-bottom-width: 2px;
+    border-bottom-color: #f39c12;
+    padding-bottom: 8px;
+    text-align: center;
+}
+
+.info-row {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.info-label {
+    color: #ffffff; /* Pure White */
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.info-value {
+    color: #ffffff; /* Pure White */
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.cast-progress-container {
+    height: 12px;
+    background-color: #333333;
+    border-radius: 6px;
+    margin-top: 15px;
+    overflow: hidden;
+    border-width: 1px;
+    border-color: #555555;
+}
+
+.cast-progress-fill {
+    height: 100%;
+    background-color: #f39c12;
+    width: 0%;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: #ffffff;
+}
+
+.status-casting {
+    background-color: #e67e22;
+}
+
+.status-instant {
+    background-color: #2ecc71;
+}
+
+.status-idle {
+    background-color: #7f8c8d;
+}
+
+.debug-description {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    color: #f1c40f;
+    font-size: 13px;
+    -unity-font-style: italic;
+    white-space: normal;
+}

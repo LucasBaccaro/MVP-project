@@ -20,6 +20,7 @@ namespace Game.Player
         [Tooltip("Referencia a la cámara instanciada en runtime")]
         private Camera playerCamera;
         private CameraFollow cameraFollow;
+        private Game.Combat.PlayerCombat playerCombat;
 
         [Header("Settings")]
         [Tooltip("Velocidad de movimiento del jugador")]
@@ -31,6 +32,11 @@ namespace Game.Player
         [Tooltip("Distancia máxima para interactuar con NPCs y objetos")]
         public float interactionRange = 5f;
 
+        [Header("Sync Variables")]
+        [SyncVar]
+        private float speedMultiplier = 1f;
+        private float slowTimer = 0f;
+
         private void Awake()
         {
             // Obtener referencias si no están asignadas
@@ -38,6 +44,7 @@ namespace Game.Player
             {
                 characterController = GetComponent<CharacterController>();
             }
+            playerCombat = GetComponent<Game.Combat.PlayerCombat>();
         }
 
         public override void OnStartLocalPlayer()
@@ -88,10 +95,35 @@ namespace Game.Player
 
         private void Update()
         {
+            UpdateSlow();
+
             if (!isLocalPlayer) return; // Solo procesar input local
 
             HandleMovement();
             HandleInteraction();
+        }
+
+        private void UpdateSlow()
+        {
+            if (slowTimer > 0)
+            {
+                slowTimer -= Time.deltaTime;
+                if (slowTimer <= 0)
+                {
+                    speedMultiplier = 1f;
+                    if (isServer) speedMultiplier = 1f; // SyncVar
+                }
+            }
+        }
+
+        /// <summary>
+        /// Aplica una reducción de velocidad temporal
+        /// </summary>
+        public void ApplySlow(float multiplier, float duration)
+        {
+            speedMultiplier = multiplier;
+            slowTimer = duration;
+            Debug.Log($"[PlayerController] Lento aplicado: {multiplier}x por {duration}s");
         }
 
         private void HandleMovement()
@@ -103,9 +135,18 @@ namespace Game.Player
             Vector3 inputDir = new Vector3(horizontal, 0f, vertical);
 
             // 2) Movimiento: SimpleMove ya aplica gravedad, NO le metas Y
-            characterController.SimpleMove(inputDir * speed);
+            characterController.SimpleMove(inputDir * (speed * speedMultiplier));
 
-            // 3) Rotar solo si hay input y SOLO en Y
+            // 3) Cancelar casteo si nos movemos y no es una habilidad de movimiento
+            if (inputDir.sqrMagnitude > 0.01f && playerCombat != null && playerCombat.IsCasting)
+            {
+                // Solo cancelamos si NO es castingType.Movement
+                // Necesitamos acceder a la habilidad actual
+                // (Nota: IsCasting y CmdCancelCast manejan la lógica en el servidor)
+                playerCombat.CmdCancelCast();
+            }
+
+            // 4) Rotar solo si hay input y SOLO en Y
             if (inputDir.sqrMagnitude > 0.01f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(inputDir, Vector3.up);

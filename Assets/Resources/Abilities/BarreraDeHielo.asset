@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 13
   abilityName: Barrera de Hielo
-  description: Crea una barrera protectora de hielo
-  icon: {fileID: 0}
+  description: "Crea una barrera protectora de hielo alrededor del mago, absorbiendo daño entrante. (Buff de supervivencia)."
+  icon: {fileID: 21300000, guid: 65bb278fb3660446b8ac7534e04089cb, type: 3}
   manaCost: 25
   cooldownTime: 12
-  baseDamage: 0
+  baseDamage: 50
   range: 15
   abilityType: 2
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 5
   abilityName: "Disparo M\xFAltiple"
-  description: "Dispara m\xFAltiples flechas"
-  icon: {fileID: 0}
+  description: "Dispara varias flechas a la vez, golpeando a los enemigos en un área pequeña. Daño base: 35. Radio: 2m."
+  icon: {fileID: 21300000, guid: 443b7ebefa4254a3ba710c51990f2366, type: 3}
   manaCost: 25
   cooldownTime: 8
   baseDamage: 35
   range: 15
   abilityType: 0
+  castingType: 0
+  castTime: 0
+  aoeRadius: 2

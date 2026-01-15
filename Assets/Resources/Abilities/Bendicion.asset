@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 21
   abilityName: Bendicion
-  description: Una poderosa bendicion que restaura gran cantidad de vida
-  icon: {fileID: 0}
+  description: "Una poderosa bendición sagrada que restaura gran cantidad de vida. Sanación base: 60."
+  icon: {fileID: 21300000, guid: e9509b301802e4ab99cff0331f247f32, type: 3}
   manaCost: 40
   cooldownTime: 10
   baseDamage: 60
   range: 15
   abilityType: 1
+  castingType: 1
+  castTime: 3
+  aoeRadius: 0

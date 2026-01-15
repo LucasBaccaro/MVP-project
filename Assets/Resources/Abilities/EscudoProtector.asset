@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
   abilityID: 8
   abilityName: Escudo Protector
-  description: Levanta el escudo para bloquear ataques
-  icon: {fileID: 0}
+  description: "Te posicionas defensivamente, aumentando drásticamente tu bloqueo y resistencia física. (Buff defensivo)."
+  icon: {fileID: 21300000, guid: 18dd991d1952c4c26b7c60de5a6d2841, type: 3}
   manaCost: 15
   cooldownTime: 10
   baseDamage: 0
   range: 2
   abilityType: 2
+  castingType: 0
+  castTime: 0
+  aoeRadius: 0

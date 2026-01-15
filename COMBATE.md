@@ -2,238 +2,104 @@
 
 ## Resumen
 
-El sistema de combate tiene dos modos diferenciados según el tipo de clase:
+El sistema de combate es dinámico y soporta múltiples estilos de juego. Utiliza un sistema de targeting híbrido inspirado en MMORPGs clásicos y Argentum Online.
 
-- **Melee (Guerrero)**: Selecciona target + presiona tecla = ejecuta habilidad
-- **Rango (Mago, Cazador, Sacerdote)**: Presiona tecla = aparece cursor cruz + click en objetivo = ejecuta habilidad (estilo Argentum Online)
+- **Selección de Habilidad**: Teclas 1-6.
+- **Ejecución**:
+  - **Single Target**: Selecciona objetivo + click izquierdo.
+  - **AoE (Área)**: Click en objetivo o click en el suelo (Ground Targeting).
+- **Casting**: Soporta habilidades instantáneas, con tiempo de casteo y canalizadas. El movimiento cancela el casteo de habilidades estáticas.
 
 ---
 
 ## Lógica de Combate Implementada
 
-### Flujo Melee (range < 3m)
-```
-1. Jugador selecciona objetivo (click izquierdo o Tab)
-2. Jugador presiona tecla 1-6
-3. Sistema valida: cooldown, maná, rango, línea de visión, zona segura
-4. Si válido → ejecuta habilidad inmediatamente
-5. Aplica daño/heal al objetivo
-```
+### 1. Sistema de Targeting (Modo Argentum)
+1. El jugador presiona una tecla de habilidad (1-6).
+2. Si la habilidad requiere objetivo o es AoE, aparece el **Cursor Cruz**.
+3. **Click en Entidad**: Ejecuta la habilidad sobre ese objetivo.
+4. **Click en Suelo**: Si la habilidad es AoE (Meteoro, Tormenta de Fuego), se ejecuta en esa posición exacta.
+5. **Cancelación**: Click derecho o ESC cancelan la selección.
 
-### Flujo Rango - Estilo Argentum (range >= 3m)
-```
-1. Jugador presiona tecla 1-6
-2. Aparece cursor CRUZ en el mundo (rojo = sin objetivo, verde = objetivo válido)
-3. Jugador mueve el mouse para apuntar
-4. Click izquierdo en objetivo → ejecuta habilidad
-5. Click derecho / ESC / click en vacío → cancela selección
-```
-
-### Archivos Clave
-| Archivo | Responsabilidad |
-|---------|-----------------|
-| `PlayerCombat.cs` | Manejo de input, validaciones, ejecución de habilidades |
-| `TargetingSystem.cs` | Selección de objetivos, cursor cruz, raycast |
-| `AbilityData.cs` | ScriptableObject con datos de cada habilidad |
-| `AbilityDatabase.cs` | Singleton que carga todas las habilidades |
-
----
-
-## Clases y Estadísticas
-
-| Clase | HP | Maná | Daño | HP Regen | Mana Regen | Tipo Combate |
-|-------|-----|------|------|----------|------------|--------------|
-| **Guerrero** | 150 | 30 | 15 | 2/s | 1/s | Melee |
-| **Mago** | 80 | 150 | 8 | 1/s | 5/s | Rango |
-| **Cazador** | 100 | 80 | 12 | 1.5/s | 2/s | Rango |
-| **Sacerdote** | 110 | 120 | 7 | 3/s | 4/s | Rango |
-
----
-
-## Habilidades por Clase
-
-### Guerrero (Melee - Range 2m)
-
-| ID | Nombre | Daño | Maná | CD | Tipo | Estado |
-|----|--------|------|------|-----|------|--------|
-| 0 | Ataque Básico | 10 | 0 | 0s | Damage | ✅ Funciona |
-| 1 | Golpe Pesado | 25 | 10 | 5s | Damage | ✅ Funciona |
-| 8 | Escudo Protector | 0 | 15 | 10s | Buff | ❌ Sin lógica |
-| 9 | Carga | 20 | 10 | 8s | Damage | ⚠️ Solo daño (no dash) |
-| 10 | Grito de Guerra | 0 | 20 | 15s | Buff | ❌ Sin lógica |
-| 11 | Tajo Giratorio | 30 | 15 | 6s | Damage | ⚠️ Solo single target (debería ser AoE) |
-
-### Mago (Rango 15m)
-
-| ID | Nombre | Daño | Maná | CD | Tipo | Estado |
-|----|--------|------|------|-----|------|--------|
-| 2 | Bola de Fuego | 30 | 20 | 3s | Damage | ✅ Funciona |
-| 3 | Rayo Helado | 20 | 15 | 2s | Damage | ✅ Funciona |
-| 12 | Tormenta de Fuego | 45 | 35 | 10s | Damage | ⚠️ Solo single target (debería ser AoE) |
-| 13 | Barrera de Hielo | 0 | 25 | 12s | Buff | ❌ Sin lógica |
-| 14 | Explosión Arcana | 25 | 18 | 4s | Damage | ✅ Funciona |
-| 15 | Meteoro | 80 | 50 | 20s | Damage | ⚠️ Solo single target (debería ser AoE) |
-
-### Cazador (Rango 15m)
-
-| ID | Nombre | Daño | Maná | CD | Tipo | Estado |
-|----|--------|------|------|-----|------|--------|
-| 4 | Flecha | 15 | 5 | 1s | Damage | ✅ Funciona |
-| 5 | Disparo Múltiple | 35 | 25 | 8s | Damage | ⚠️ Solo single target (debería ser multi-hit) |
-| 16 | Trampa | 25 | 15 | 12s | Damage | ⚠️ Solo daño (debería colocarse en suelo) |
-| 17 | Flecha Venenosa | 20 | 12 | 5s | Damage | ⚠️ Solo daño instantáneo (debería ser DoT) |
-| 18 | Disparo Certero | 40 | 20 | 8s | Damage | ✅ Funciona |
-| 19 | Lluvia de Flechas | 50 | 35 | 15s | Damage | ⚠️ Solo single target (debería ser AoE) |
-
-### Sacerdote (Rango 15m)
-
-| ID | Nombre | Valor | Maná | CD | Tipo | Estado |
-|----|--------|-------|------|-----|------|--------|
-| 6 | Golpe Sagrado | 12 | 8 | 2s | Damage | ✅ Funciona |
-| 7 | Palabra Sagrada | 20 | 15 | 4s | Damage | ✅ Funciona |
-| 20 | Curación | 35 | 20 | 3s | Heal | ✅ Funciona |
-| 21 | Bendición | 60 | 40 | 10s | Heal | ✅ Funciona |
-| 22 | Luz Divina | 22 | 15 | 4s | Damage | ✅ Funciona |
-| 23 | Castigo Divino | 45 | 30 | 12s | Damage | ✅ Funciona |
+### 2. Estados de Habilidad y Casting
+| Tipo de Casting | Comportamiento |
+|-----------------|----------------|
+| **Instant** | Se dispara inmediatamente. |
+| **Casting** | Requiere quedarse quieto durante X segundos. El movimiento cancela el casteo. |
+| **Channel** | Efecto continuo mientras se mantiene el casteo. |
+| **Movement** | Permite castear mientras el jugador se desplaza. |
 
 ---
 
 ## Tipos de Habilidad (AbilityType)
 
-```csharp
-public enum AbilityType
-{
-    Damage = 0,  // ✅ Implementado - Aplica daño directo
-    Heal = 1,    // ✅ Implementado - Restaura HP
-    Buff = 2     // ❌ NO implementado - Solo log de debug
-}
-```
+- **Damage**: Aplica daño directo (Single/AoE).
+- **Heal**: Restaura vida al objetivo o aliados en área.
+- **Buff**: Aplica efectos positivos. Incluye **Sistema de Escudos** (absorción de daño).
+- **Debuff**: Aplica efectos negativos. Incluye **Sistema de Ralentización (Slow)**.
 
 ---
 
-## Lo que FALTA Implementar
+## Mecánicas Avanzadas
 
-### 1. Sistema de Buffs/Debuffs
-**Afecta:** Escudo Protector, Grito de Guerra, Barrera de Hielo
+### Área de Efecto (AoE)
+- **Detección**: Usa `Physics.OverlapSphere` en el servidor para detectar múltiples objetivos.
+- **Sin Autodaño**: El sistema evita que el caster se haga daño a sí mismo con sus propias áreas.
+- **Ground Casting**: Permite apuntar a una posición del mundo sin necesidad de designar a un enemigo.
 
-```
-Necesita:
-- Lista de buffs activos por jugador
-- Duración temporal
-- Modificadores de stats (daño, defensa, velocidad)
-- UI para mostrar buffs activos
-```
+### Escudos (Barrera de Hielo)
+- Implementado en `PlayerStats`. El daño entrante se resta primero del valor del escudo (`shieldAmount`) antes de afectar la vida del jugador.
 
-### 2. Área de Efecto (AoE)
-**Afecta:** Tajo Giratorio, Tormenta de Fuego, Meteoro, Lluvia de Flechas
-
-```
-Necesita:
-- Campo "aoeRadius" en AbilityData
-- Detección de enemigos en área (Physics.OverlapSphere)
-- Aplicar daño a múltiples objetivos
-```
-
-### 3. Daño en el Tiempo (DoT)
-**Afecta:** Flecha Venenosa, (potencialmente Tormenta de Fuego)
-
-```
-Necesita:
-- Sistema de efectos activos
-- Tick de daño cada X segundos
-- Duración del efecto
-- UI indicando DoT activo
-```
-
-### 4. Habilidades de Posicionamiento
-**Afecta:** Carga, Trampa
-
-```
-Carga necesita:
-- Mover al jugador hacia el objetivo
-- Aplicar daño al llegar
-
-Trampa necesita:
-- Instanciar objeto en el mundo
-- Trigger de activación cuando enemigo pise
-```
-
-### 5. Proyectiles Visuales
-**Estado actual:** Las habilidades de rango aplican daño instantáneo
-
-```
-Necesita:
-- Prefabs de proyectiles (flecha, bola de fuego, etc.)
-- Sistema de spawn + movimiento hacia target
-- Aplicar daño al impactar
-```
+### Ralentización (Slow)
+- Implementado en `PlayerController`. Reduce la velocidad de movimiento del objetivo en un 50% durante una duración determinada (ej. Rayo Helado).
 
 ---
 
-## Validaciones de Combate
+## Habilidades por Clase (Estado Actual)
 
-El sistema valida antes de ejecutar una habilidad:
+### Guerrero (Melee - 2m)
+| Nombre | Tipo | AoE | Notas |
+|--------|------|-----|-------|
+| Ataque Básico | Damage | No | Instantáneo. |
+| Golpe Pesado | Damage | No | Gran daño. |
+| Tajo Giratorio | Damage | **Sí** | Ahora daña a todos los enemigos cercanos. |
 
-| Validación | Dónde | Descripción |
-|------------|-------|-------------|
-| Cooldown | Cliente + Server | La habilidad no está en cooldown |
-| Maná | Cliente + Server | Suficiente maná para el costo |
-| Rango | Server | Objetivo dentro del rango de la habilidad |
-| Línea de Visión | Server | No hay obstáculos entre jugador y objetivo |
-| Zona Segura | Cliente + Server | Ni atacante ni objetivo en zona segura |
-| Objetivo Válido | Cliente + Server | El objetivo existe y está vivo |
+### Mago (Rango - 15m)
+| Nombre | Tipo | AoE | Notas |
+|--------|------|-----|-------|
+| Bola de Fuego | Damage | No | Daño base alto. |
+| Rayo Helado | Debuff | No | Aplica daño y **Ralentización (50%)**. |
+| Meteoro | Damage | **Sí** | Gran daño en área. Soporta **Ground Targeting**. |
+| Tormenta de Fuego| Damage | **Sí** | Área persistente de fuego. |
+| Barrera de Hielo | Buff | No | Aplica un **Escudo de 50 pts** de absorción. |
 
----
+### Cazador (Rango - 15m)
+| Nombre | Tipo | AoE | Notas |
+|--------|------|-----|-------|
+| Flecha | Damage | No | Disparo básico. |
+| Lluvia de Flechas | Damage | **Sí** | Daño masivo en área seleccionada. |
+| Disparo Certero | Damage | No | Daño crítico. |
 
-## Eventos del Sistema
-
-```csharp
-// PlayerCombat.cs
-event Action<int, float> OnCooldownStarted;  // Habilidad entró en cooldown
-event Action<int> OnCooldownReady;           // Habilidad lista para usar
-event Action OnAbilitiesUpdated;             // Lista de habilidades cambió
-event Action<int> OnAbilitySelected;         // Habilidad seleccionada (sistema cruz)
-
-// TargetingSystem.cs
-event Action<NetworkIdentity> OnTargetChanged;  // Objetivo cambió
-```
-
----
-
-## Constantes Importantes
-
-```csharp
-// PlayerCombat.cs
-const float RANGED_ABILITY_THRESHOLD = 3f;  // >= 3m usa sistema de cruz
-
-// TargetingSystem.cs
-float maxTargetingDistance = 100f;  // Distancia máxima de targeting
-float indicatorYOffset = 0.1f;      // Altura del cursor sobre el suelo
-```
+### Sacerdote (Rango - 15m)
+| Nombre | Tipo | AoE | Notas |
+|--------|------|-----|-------|
+| Curación | Heal | No | Restaura vida a un aliado. |
+| Bendición | Heal | **Sí** | Curación masiva en área. |
+| Castigo Divino | Damage | No | Daño sagrado instantáneo. |
 
 ---
 
-## UI Relacionada
+## Archivos Clave del Sistema
 
-| Componente | Archivo | Función |
-|------------|---------|---------|
-| Barra de Habilidades | `AbilityBarUI.cs` | Muestra 6 slots con iconos y cooldowns |
-| Indicador de Target | `TargetingSystem.cs` | Círculo rojo bajo el objetivo |
-| Cursor Cruz | `TargetingSystem.cs` | Cruz que sigue el mouse (modo Argentum) |
-| Frame de Objetivo | `TargetFrameUI.cs` | HP y nombre del objetivo seleccionado |
+- `AbilityData.cs`: Definición de datos (CastingType, AoERadius, BaseDamage).
+- `PlayerCombat.cs`: El "cerebro". Maneja cooldowns, estados de casteo y lógica de efectos.
+- `PlayerStats.cs`: Gestiona HP, Maná y el sistema de **Escudos**.
+- `TargetingSystem.cs`: Maneja el raycast, la selección de objetivos y el **Ground targeting**.
+- `EnemyController.cs`: IA básica que utiliza el sistema de daño unificado.
 
 ---
 
-## Notas Técnicas
-
-### Networking (Mirror)
-- Las habilidades se ejecutan en el **servidor** (autoridad)
-- El cliente envía `CmdUseAbility(index, target)`
-- El servidor valida y ejecuta
-- Los efectos visuales se sincronizan via `RpcPlayAbilityEffect`
-- Los cooldowns se sincronizan via `RpcStartCooldown`
-
-### Carga de Habilidades
-- `AbilityDatabase` carga automáticamente desde `Resources/Abilities/`
-- Las clases referencian habilidades por GUID en el asset
-- Los IDs de habilidad se sincronizan via `SyncList<int>`
+## Notas de Desarrollo
+- **Server Authority**: Todas las validaciones de rango, maná y daño ocurren en el servidor.
+- **SyncVars**: Los estados de casteo y escudos están sincronizados automáticamente vía Mirror.
+- **Fácil Expansión**: Para crear una habilidad nueva, solo crea el Asset en `Resources/Abilities/` y el sistema lo reconocerá automáticamente según su `AbilityType`.
