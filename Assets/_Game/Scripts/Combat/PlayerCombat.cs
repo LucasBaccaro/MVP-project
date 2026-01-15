@@ -9,6 +9,7 @@ namespace Game.Combat
     /// <summary>
     /// Sistema de combate del jugador
     /// Maneja uso de habilidades, validaciones y cooldowns
+    /// Sistema de targeting estilo Argentum: seleccionar habilidad -> click en objetivo
     /// </summary>
     public class PlayerCombat : NetworkBehaviour
     {
@@ -24,10 +25,16 @@ namespace Game.Combat
         // Cooldowns activos (abilityIndex -> tiempo cuando estará listo)
         private Dictionary<int, float> cooldowns = new Dictionary<int, float>();
 
+        // Sistema de selección de habilidad (estilo Argentum)
+        private int selectedAbilityIndex = -1; // -1 = ninguna seleccionada
+        public int SelectedAbilityIndex => selectedAbilityIndex;
+        public bool HasSelectedAbility => selectedAbilityIndex >= 0;
+
         // Eventos para UI
         public event System.Action<int, float> OnCooldownStarted;
         public event System.Action<int> OnCooldownReady;
         public event System.Action OnAbilitiesUpdated;
+        public event System.Action<int> OnAbilitySelected; // Notifica qué habilidad se seleccionó (-1 = ninguna)
 
         /// <summary>
         /// Propiedad para obtener las AbilityData desde los IDs sincronizados
@@ -58,19 +65,54 @@ namespace Game.Combat
             abilityIDs.Callback += OnAbilityIDsChanged;
         }
 
+        // Rango mínimo para considerar una habilidad como "de rango" (usa sistema de cruz)
+        private const float RANGED_ABILITY_THRESHOLD = 3f;
+
         private void Update()
         {
             // Solo el jugador local procesa input
             if (!isLocalPlayer) return;
 
             // Atajos de teclado para habilidades (1, 2, 3, 4)
-            if (Input.GetKeyDown(KeyCode.Alpha1)) TryUseAbility(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) TryUseAbility(1);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) TryUseAbility(2);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) TryUseAbility(3);
+            if (Input.GetKeyDown(KeyCode.Alpha1)) HandleAbilityInput(0);
+            if (Input.GetKeyDown(KeyCode.Alpha2)) HandleAbilityInput(1);
+            if (Input.GetKeyDown(KeyCode.Alpha3)) HandleAbilityInput(2);
+            if (Input.GetKeyDown(KeyCode.Alpha4)) HandleAbilityInput(3);
+
+            // ESC o click derecho cancela la selección
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetMouseButtonDown(1))
+            {
+                CancelAbilitySelection();
+            }
 
             // Actualizar cooldowns
             UpdateCooldowns();
+        }
+
+        /// <summary>
+        /// Maneja el input de habilidad - decide si usar sistema de cruz o ejecutar directamente
+        /// </summary>
+        private void HandleAbilityInput(int abilityIndex)
+        {
+            AbilityData ability = GetAbility(abilityIndex);
+            if (ability == null)
+            {
+                Debug.LogWarning($"[PlayerCombat] No hay habilidad en slot {abilityIndex}");
+                return;
+            }
+
+            // Si es habilidad de rango (range > threshold), usar sistema de selección con cruz
+            if (ability.range >= RANGED_ABILITY_THRESHOLD)
+            {
+                Debug.Log($"[PlayerCombat] Habilidad de RANGO detectada: {ability.abilityName} (range={ability.range}m) - Usando sistema de cruz");
+                SelectAbility(abilityIndex);
+            }
+            else
+            {
+                // Habilidad melee - usar sistema antiguo (ejecutar directamente si hay target)
+                Debug.Log($"[PlayerCombat] Habilidad MELEE detectada: {ability.abilityName} (range={ability.range}m) - Ejecutando directamente");
+                TryUseAbility(abilityIndex);
+            }
         }
 
         /// <summary>
@@ -85,27 +127,138 @@ namespace Game.Combat
         }
 
         /// <summary>
-        /// Intenta usar una habilidad (llamado desde cliente)
+        /// Obtiene la habilidad actualmente seleccionada (null si ninguna)
         /// </summary>
-        public void TryUseAbility(int abilityIndex)
+        public AbilityData GetSelectedAbility()
         {
-            // Validaciones locales (feedback rápido)
-            if (!ValidateAbilityLocal(abilityIndex))
+            if (!HasSelectedAbility) return null;
+            return GetAbility(selectedAbilityIndex);
+        }
+
+        /// <summary>
+        /// Selecciona una habilidad para usar (estilo Argentum)
+        /// No la ejecuta, solo la prepara para el siguiente click
+        /// </summary>
+        public void SelectAbility(int abilityIndex)
+        {
+            Debug.Log($"[PlayerCombat] SelectAbility llamado - index={abilityIndex}, isLocalPlayer={isLocalPlayer}, isServer={isServer}");
+
+            // Verificar índice válido
+            if (abilityIndex < 0 || abilityIndex >= abilityIDs.Count)
             {
+                Debug.LogWarning($"[PlayerCombat] Índice de habilidad inválido: {abilityIndex} (total={abilityIDs.Count})");
                 return;
             }
 
-            // Obtener el objetivo actual
-            NetworkIdentity target = targetingSystem.currentTarget;
+            // Verificar que existe la habilidad
+            AbilityData ability = GetAbility(abilityIndex);
+            if (ability == null)
+            {
+                Debug.LogWarning($"[PlayerCombat] No hay habilidad en slot {abilityIndex}");
+                return;
+            }
+
+            // Verificar cooldown
+            if (IsOnCooldown(abilityIndex))
+            {
+                float remainingTime = GetCooldownRemaining(abilityIndex);
+                Debug.Log($"[PlayerCombat] {ability.abilityName} en cooldown ({remainingTime:F1}s restantes)");
+                return;
+            }
+
+            // Verificar maná
+            if (playerStats.currentMana < ability.manaCost)
+            {
+                Debug.LogWarning($"[PlayerCombat] Maná insuficiente ({playerStats.currentMana}/{ability.manaCost})");
+                return;
+            }
+
+            // Si ya está seleccionada, deseleccionar (toggle)
+            if (selectedAbilityIndex == abilityIndex)
+            {
+                Debug.Log($"[PlayerCombat] Toggle: deseleccionando habilidad {abilityIndex}");
+                CancelAbilitySelection();
+                return;
+            }
+
+            // Seleccionar la habilidad
+            selectedAbilityIndex = abilityIndex;
+            Debug.Log($"[PlayerCombat] >>> HABILIDAD SELECCIONADA: {ability.abilityName} (index={abilityIndex}) - HasSelectedAbility={HasSelectedAbility}");
+            OnAbilitySelected?.Invoke(selectedAbilityIndex);
+        }
+
+        /// <summary>
+        /// Cancela la selección de habilidad actual
+        /// </summary>
+        public void CancelAbilitySelection()
+        {
+            Debug.Log($"[PlayerCombat] CancelAbilitySelection llamado - selectedAbilityIndex={selectedAbilityIndex}");
+            if (selectedAbilityIndex >= 0)
+            {
+                Debug.Log($"[PlayerCombat] >>> CANCELANDO selección de habilidad {selectedAbilityIndex}");
+                selectedAbilityIndex = -1;
+                OnAbilitySelected?.Invoke(-1);
+            }
+        }
+
+        /// <summary>
+        /// Ejecuta la habilidad seleccionada en el objetivo dado (llamado desde TargetingSystem)
+        /// </summary>
+        public void ExecuteSelectedAbilityOnTarget(NetworkIdentity target)
+        {
+            Debug.Log($"[PlayerCombat] ExecuteSelectedAbilityOnTarget llamado - HasSelectedAbility={HasSelectedAbility}, target={target?.gameObject.name ?? "NULL"}");
+
+            if (!HasSelectedAbility)
+            {
+                Debug.LogWarning("[PlayerCombat] No hay habilidad seleccionada");
+                return;
+            }
+
+            if (target == null)
+            {
+                Debug.LogWarning("[PlayerCombat] No hay objetivo válido");
+                return;
+            }
+
+            AbilityData ability = GetSelectedAbility();
+            Debug.Log($"[PlayerCombat] >>> EJECUTANDO habilidad {ability?.abilityName ?? "NULL"} en {target.gameObject.name}");
+
+            // Usar la habilidad seleccionada
+            TryUseAbility(selectedAbilityIndex, target);
+
+            // Cancelar selección después de usar (comportamiento Argentum)
+            CancelAbilitySelection();
+        }
+
+        /// <summary>
+        /// Intenta usar una habilidad en un objetivo específico
+        /// </summary>
+        public void TryUseAbility(int abilityIndex, NetworkIdentity target)
+        {
+            // Validaciones locales (feedback rápido)
+            if (!ValidateAbilityLocal(abilityIndex, target))
+            {
+                return;
+            }
 
             // Enviar comando al servidor con el objetivo
             CmdUseAbility(abilityIndex, target);
         }
 
         /// <summary>
+        /// Intenta usar una habilidad (llamado desde cliente) - usa el objetivo actual del targeting
+        /// </summary>
+        public void TryUseAbility(int abilityIndex)
+        {
+            // Obtener el objetivo actual
+            NetworkIdentity target = targetingSystem.currentTarget;
+            TryUseAbility(abilityIndex, target);
+        }
+
+        /// <summary>
         /// Validaciones locales antes de enviar al servidor
         /// </summary>
-        private bool ValidateAbilityLocal(int abilityIndex)
+        private bool ValidateAbilityLocal(int abilityIndex, NetworkIdentity target)
         {
             // Verificar índice válido
             if (abilityIndex < 0 || abilityIndex >= abilityIDs.Count)
@@ -131,7 +284,7 @@ namespace Game.Combat
             }
 
             // Verificar que hay objetivo
-            if (targetingSystem.currentTarget == null)
+            if (target == null)
             {
                 Debug.LogWarning($"[PlayerCombat] No hay objetivo seleccionado");
                 return false;
@@ -148,7 +301,7 @@ namespace Game.Combat
                 }
 
                 // Chequear si el OBJETIVO está en zona segura
-                ZoneHandler targetZone = targetingSystem.currentTarget.GetComponent<ZoneHandler>();
+                ZoneHandler targetZone = target.GetComponent<ZoneHandler>();
                 if (targetZone != null && targetZone.IsInSafeZone())
                 {
                     Debug.LogWarning("[PlayerCombat] El objetivo está en zona segura");

@@ -19,5 +19,5 @@ MonoBehaviour:
   manaCost: 8
   cooldownTime: 2
   baseDamage: 12
-  range: 5
+  range: 15
   abilityType: 0

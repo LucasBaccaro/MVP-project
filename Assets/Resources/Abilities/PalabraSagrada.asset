@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f79883ef23dcd40d0acba4c0e904aa69, type: 3}
-  m_Name: RayoHelado
+  m_Name: PalabraSagrada
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
-  abilityID: 3
-  abilityName: Rayo Helado
-  description: Dispara un rayo de hielo
-  icon: {fileID: 21300000, guid: de9cd4fe26bbc45f592db84b7a44f926, type: 3}
+  abilityID: 7
+  abilityName: Palabra Sagrada
+  description: "Palabra de poder que da\xF1a a los enemigos"
+  icon: {fileID: 0}
   manaCost: 15
-  cooldownTime: 2
+  cooldownTime: 4
   baseDamage: 20
-  range: 8
+  range: 15
   abilityType: 0

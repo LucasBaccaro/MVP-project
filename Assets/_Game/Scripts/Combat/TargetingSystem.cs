@@ -1,6 +1,7 @@
 using Mirror;
 using UnityEngine;
 using UnityEngine.AI; // Added for NavMesh.SamplePosition
+using UnityEngine.EventSystems; // Para verificar si el click está sobre UI
 using System;
 using System.Collections.Generic; // Added for List
 using Game.Player; // Necesario para TargetingUIConnector
@@ -10,16 +11,17 @@ namespace Game.Combat
     /// <summary>
     /// Sistema de selección de objetivos mediante raycast
     /// Maneja targeting de jugadores y enemigos
+    /// Sistema estilo Argentum: cursor cruz cuando hay habilidad seleccionada
     /// </summary>
     public class TargetingSystem : NetworkBehaviour
     {
         [Header("Settings")]
         [Tooltip("Layers que pueden ser targetados (Player, Enemy)")]
         public LayerMask targetableLayers;
-        
+
         [Tooltip("Layers que bloquean Line of Sight (Ground, Obstacles)")]
         public LayerMask losBlockingLayers;
-        
+
         [Tooltip("Distancia máxima del raycast de targeting")]
         public float maxTargetingDistance = 100f;
 
@@ -28,22 +30,37 @@ namespace Game.Combat
         public NetworkIdentity currentTarget;
 
         // Eventos
-        // Eventos
         public event Action<NetworkIdentity> OnTargetChanged;
 
         [Header("Visuals")]
-        [Tooltip("Prefab del indicador (círculo rojo)")]
+        [Tooltip("Prefab del indicador (círculo rojo) para objetivo seleccionado")]
         public GameObject targetIndicatorPrefab;
+
+        [Tooltip("Prefab del cursor cruz para cuando hay habilidad seleccionada")]
+        public GameObject crosshairCursorPrefab;
+
         [Tooltip("Offset vertical del indicador desde el suelo")]
         public float indicatorYOffset = 0.1f;
 
         private GameObject activeIndicator;
+        private GameObject activeCrosshair;
         private Camera playerCamera;
+        private PlayerCombat playerCombat;
 
         private void Start()
         {
+            Debug.Log($"[TargetingSystem] Start - isLocalPlayer={isLocalPlayer}, isServer={isServer}, isClient={isClient}, gameObject={gameObject.name}");
+
             // Solo el jugador local puede hacer targeting
-            if (!isLocalPlayer) return;
+            if (!isLocalPlayer)
+            {
+                Debug.Log("[TargetingSystem] No es local player, saliendo de Start");
+                return;
+            }
+
+            // Obtener referencia a PlayerCombat
+            playerCombat = GetComponent<PlayerCombat>();
+            Debug.Log($"[TargetingSystem] PlayerCombat reference: {(playerCombat != null ? "OK" : "NULL")}");
 
             // Asegurar que existe el conector de UI
             if (GetComponent<TargetingUIConnector>() == null)
@@ -60,14 +77,90 @@ namespace Game.Combat
             {
                 activeIndicator = Instantiate(targetIndicatorPrefab);
                 activeIndicator.SetActive(false);
-                // No lo hacemos hijo para evitar problemas de escala/rotación con el target
-                DontDestroyOnLoad(activeIndicator); // O mejor, manejar limpieza manual
+                DontDestroyOnLoad(activeIndicator);
+                Debug.Log("[TargetingSystem] Target indicator creado desde prefab");
+            }
+
+            // Instanciar cursor cruz si hay prefab
+            if (crosshairCursorPrefab != null)
+            {
+                activeCrosshair = Instantiate(crosshairCursorPrefab);
+                activeCrosshair.SetActive(false);
+                DontDestroyOnLoad(activeCrosshair);
+                Debug.Log("[TargetingSystem] Crosshair creado desde prefab");
+            }
+            else
+            {
+                // Crear cursor cruz programáticamente si no hay prefab
+                CreateDefaultCrosshair();
+                Debug.Log("[TargetingSystem] Crosshair creado programáticamente");
             }
         }
 
         private void OnDestroy()
         {
             if (activeIndicator != null) Destroy(activeIndicator);
+            if (activeCrosshair != null) Destroy(activeCrosshair);
+        }
+
+        /// <summary>
+        /// Crea un cursor cruz por defecto si no hay prefab asignado
+        /// </summary>
+        private void CreateDefaultCrosshair()
+        {
+            Debug.Log("[TargetingSystem] CreateDefaultCrosshair - Creando cursor cruz programáticamente");
+
+            activeCrosshair = new GameObject("CrosshairCursor");
+            DontDestroyOnLoad(activeCrosshair);
+
+            // Crear la cruz con 2 líneas usando LineRenderer (forma de +)
+            // Línea horizontal (eje X)
+            GameObject horizontalLine = CreateCrosshairLine("HorizontalLine", new Vector3(-0.5f, 0, 0), new Vector3(0.5f, 0, 0));
+            horizontalLine.transform.SetParent(activeCrosshair.transform);
+
+            // Línea vertical (eje Z para vista top-down)
+            GameObject verticalLine = CreateCrosshairLine("VerticalLine", new Vector3(0, 0, -0.5f), new Vector3(0, 0, 0.5f));
+            verticalLine.transform.SetParent(activeCrosshair.transform);
+
+            activeCrosshair.SetActive(false);
+
+            Debug.Log($"[TargetingSystem] Crosshair creado: {activeCrosshair.name}, children={activeCrosshair.transform.childCount}");
+        }
+
+        private GameObject CreateCrosshairLine(string name, Vector3 start, Vector3 end)
+        {
+            GameObject lineObj = new GameObject(name);
+            LineRenderer lr = lineObj.AddComponent<LineRenderer>();
+
+            lr.positionCount = 2;
+            lr.SetPosition(0, start);
+            lr.SetPosition(1, end);
+
+            lr.startWidth = 0.1f;
+            lr.endWidth = 0.1f;
+            lr.useWorldSpace = false;
+
+            // Buscar un shader que funcione en URP
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
+
+            if (shader != null)
+            {
+                lr.material = new Material(shader);
+                lr.material.color = Color.red;
+            }
+            else
+            {
+                Debug.LogWarning("[TargetingSystem] No se pudo encontrar shader para crosshair");
+            }
+
+            lr.startColor = Color.red;
+            lr.endColor = Color.red;
+
+            Debug.Log($"[TargetingSystem] Línea creada: {name}, shader={(shader != null ? shader.name : "NULL")}");
+
+            return lineObj;
         }
 
         /// <summary>
@@ -84,13 +177,37 @@ namespace Game.Combat
             // Solo el jugador local procesa input
             if (!isLocalPlayer) return;
 
-            // Click izquierdo para seleccionar objetivo
-            if (Input.GetMouseButtonDown(0))
+            bool hasAbilitySelected = playerCombat != null && playerCombat.HasSelectedAbility;
+
+            // Log cada segundo para no saturar
+            if (Time.frameCount % 60 == 0 && hasAbilitySelected)
             {
-                TrySelectTarget();
+                Debug.Log($"[TargetingSystem] Update - hasAbilitySelected={hasAbilitySelected}, playerCombat={playerCombat != null}, selectedIndex={playerCombat?.SelectedAbilityIndex ?? -1}");
             }
 
-            // ESC para limpiar objetivo
+            // Click izquierdo (ignorar si está sobre UI)
+            if (Input.GetMouseButtonDown(0))
+            {
+                // Verificar si el click está sobre un elemento de UI
+                bool isOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+                Debug.Log($"[TargetingSystem] Click izquierdo detectado - hasAbilitySelected={hasAbilitySelected}, isOverUI={isOverUI}");
+
+                if (!isOverUI)
+                {
+                    if (hasAbilitySelected)
+                    {
+                        // Modo Argentum: ejecutar habilidad en el objetivo clickeado
+                        TryExecuteAbilityOnClick();
+                    }
+                    else
+                    {
+                        // Modo normal: seleccionar objetivo
+                        TrySelectTarget();
+                    }
+                }
+            }
+
+            // ESC para limpiar objetivo (la cancelación de habilidad se maneja en PlayerCombat)
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 ClearTarget();
@@ -102,14 +219,72 @@ namespace Game.Combat
                 ClearTarget();
             }
 
-            // Tab Targeting
-            if (Input.GetKeyDown(KeyCode.Tab))
+            // Tab Targeting (solo si no hay habilidad seleccionada)
+            if (Input.GetKeyDown(KeyCode.Tab) && !hasAbilitySelected)
             {
                 CycleTargets();
             }
 
             // Actualizar posición del indicador
             UpdateIndicator();
+
+            // Actualizar cursor cruz
+            UpdateCrosshair(hasAbilitySelected);
+        }
+
+        /// <summary>
+        /// Intenta ejecutar la habilidad seleccionada en el objetivo clickeado (estilo Argentum)
+        /// </summary>
+        private void TryExecuteAbilityOnClick()
+        {
+            Debug.Log($"[TargetingSystem] TryExecuteAbilityOnClick - playerCamera={playerCamera != null}, playerCombat={playerCombat != null}");
+
+            if (playerCamera == null)
+            {
+                Debug.LogWarning("[TargetingSystem] No hay cámara asignada");
+                return;
+            }
+
+            Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            Debug.Log($"[TargetingSystem] Raycast desde mouse - targetableLayers={targetableLayers.value}");
+
+            if (Physics.Raycast(ray, out hit, maxTargetingDistance, targetableLayers))
+            {
+                Debug.Log($"[TargetingSystem] Raycast HIT: {hit.collider.gameObject.name}");
+                NetworkIdentity targetIdentity = hit.collider.GetComponentInParent<NetworkIdentity>();
+
+                if (targetIdentity != null && targetIdentity != netIdentity)
+                {
+                    // Verificar si está vivo
+                    var targetStats = targetIdentity.GetComponent<Game.Core.IEntityStats>();
+                    if (targetStats != null && targetStats.CurrentHealth <= 0)
+                    {
+                        Debug.Log("[TargetingSystem] El objetivo está muerto");
+                        return;
+                    }
+
+                    // Ejecutar la habilidad en el objetivo
+                    Debug.Log($"[TargetingSystem] >>> EJECUTANDO habilidad en {targetIdentity.gameObject.name}");
+                    playerCombat.ExecuteSelectedAbilityOnTarget(targetIdentity);
+
+                    // También actualizar el target actual
+                    SelectTarget(targetIdentity);
+                }
+                else
+                {
+                    Debug.Log($"[TargetingSystem] Click en objetivo inválido o en self - targetIdentity={targetIdentity != null}, isSelf={targetIdentity == netIdentity}");
+                    // Cancelar la habilidad si clickea en lugar inválido
+                    playerCombat.CancelAbilitySelection();
+                }
+            }
+            else
+            {
+                Debug.Log("[TargetingSystem] Raycast no detectó objetivo válido - cancelando habilidad");
+                // Click en el suelo o vacío cancela la habilidad
+                playerCombat.CancelAbilitySelection();
+            }
         }
 
         /// <summary>
@@ -302,24 +477,115 @@ namespace Game.Combat
             if (currentTarget != null && IsTargetValid())
             {
                 if (!activeIndicator.activeSelf) activeIndicator.SetActive(true);
-                
+
                 // Seguir posición pegado al NavMesh (suelo)
                 Vector3 targetPos = currentTarget.transform.position;
-                
+
                 // Buscar punto más cercano en NavMesh en radio de 2m
                 if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, 2.0f, NavMesh.AllAreas))
                 {
-                     activeIndicator.transform.position = hit.position + Vector3.up * indicatorYOffset;
+                    activeIndicator.transform.position = hit.position + Vector3.up * indicatorYOffset;
                 }
                 else
                 {
-                     // Fallback si no encuentra NavMesh (ej: aire)
-                     activeIndicator.transform.position = targetPos + Vector3.up * indicatorYOffset;
+                    // Fallback si no encuentra NavMesh (ej: aire)
+                    activeIndicator.transform.position = targetPos + Vector3.up * indicatorYOffset;
                 }
             }
             else
             {
                 if (activeIndicator.activeSelf) activeIndicator.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// Actualiza la posición y visibilidad del cursor cruz (estilo Argentum)
+        /// </summary>
+        private void UpdateCrosshair(bool hasAbilitySelected)
+        {
+            if (activeCrosshair == null)
+            {
+                // Log solo una vez
+                if (Time.frameCount % 300 == 0)
+                    Debug.LogWarning("[TargetingSystem] activeCrosshair es NULL!");
+                return;
+            }
+
+            if (hasAbilitySelected && playerCamera != null)
+            {
+                // Mostrar el cursor cruz
+                if (!activeCrosshair.activeSelf)
+                {
+                    Debug.Log("[TargetingSystem] >>> MOSTRANDO cursor cruz");
+                    activeCrosshair.SetActive(true);
+                }
+
+                // Raycast para posicionar la cruz donde apunta el mouse
+                Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hit;
+
+                // Primero intentar hit en objetivos válidos
+                if (Physics.Raycast(ray, out hit, maxTargetingDistance, targetableLayers))
+                {
+                    // Posicionar sobre el objetivo
+                    Vector3 targetPos = hit.collider.GetComponentInParent<Transform>().position;
+
+                    if (NavMesh.SamplePosition(targetPos, out NavMeshHit navHit, 2.0f, NavMesh.AllAreas))
+                    {
+                        activeCrosshair.transform.position = navHit.position + Vector3.up * (indicatorYOffset + 0.05f);
+                    }
+                    else
+                    {
+                        activeCrosshair.transform.position = targetPos + Vector3.up * (indicatorYOffset + 0.05f);
+                    }
+
+                    // Cambiar color a verde si el objetivo es válido
+                    SetCrosshairColor(Color.green);
+                }
+                else
+                {
+                    // Hit en el suelo o cualquier otra superficie
+                    LayerMask groundLayer = LayerMask.GetMask("Ground", "Default");
+                    if (Physics.Raycast(ray, out hit, maxTargetingDistance, groundLayer))
+                    {
+                        activeCrosshair.transform.position = hit.point + Vector3.up * indicatorYOffset;
+                    }
+                    else
+                    {
+                        // Fallback: posicionar a cierta distancia del jugador
+                        activeCrosshair.transform.position = transform.position + transform.forward * 3f + Vector3.up * indicatorYOffset;
+                    }
+
+                    // Color rojo cuando no hay objetivo válido
+                    SetCrosshairColor(Color.red);
+                }
+
+                // Rotar para que siempre mire hacia arriba (plano XZ)
+                activeCrosshair.transform.rotation = Quaternion.Euler(0, 0, 0);
+            }
+            else
+            {
+                // Ocultar el cursor cruz
+                if (activeCrosshair.activeSelf)
+                {
+                    Debug.Log($"[TargetingSystem] >>> OCULTANDO cursor cruz - hasAbilitySelected={hasAbilitySelected}, playerCamera={playerCamera != null}");
+                    activeCrosshair.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cambia el color del cursor cruz
+        /// </summary>
+        private void SetCrosshairColor(Color color)
+        {
+            if (activeCrosshair == null) return;
+
+            LineRenderer[] lines = activeCrosshair.GetComponentsInChildren<LineRenderer>();
+            foreach (var lr in lines)
+            {
+                lr.startColor = color;
+                lr.endColor = color;
             }
         }
 

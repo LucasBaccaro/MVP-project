@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f79883ef23dcd40d0acba4c0e904aa69, type: 3}
-  m_Name: PalabraSagrada
+  m_Name: BolaDeFuego
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
-  abilityID: 7
-  abilityName: Palabra Sagrada
-  description: "Palabra de poder que da\xF1a a los enemigos"
-  icon: {fileID: 0}
-  manaCost: 15
-  cooldownTime: 4
-  baseDamage: 20
-  range: 8
+  abilityID: 2
+  abilityName: Bola de Fuego
+  description: Lanza una bola de fuego ardiente
+  icon: {fileID: 21300000, guid: e08643bde92d84a72898667bf799076f, type: 3}
+  manaCost: 20
+  cooldownTime: 3
+  baseDamage: 30
+  range: 15
   abilityType: 0

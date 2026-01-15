@@ -6,14 +6,19 @@ namespace Game.Core
     /// <summary>
     /// Base de datos centralizada de todas las habilidades del juego.
     /// Singleton para acceso global. Similar a ItemDatabase.
+    /// Carga automáticamente desde Resources/Abilities o desde la lista del Inspector.
     /// </summary>
     public class AbilityDatabase : MonoBehaviour
     {
         public static AbilityDatabase Instance { get; private set; }
 
         [Header("Ability Database")]
-        [Tooltip("Lista de TODAS las habilidades del juego. Asignar en Inspector.")]
+        [Tooltip("Lista de habilidades. Si está vacía, carga automáticamente desde Resources/Abilities")]
         public List<AbilityData> allAbilities = new List<AbilityData>();
+
+        [Header("Auto-Load Settings")]
+        [Tooltip("Si está activo, carga todas las habilidades desde Resources/Abilities")]
+        public bool autoLoadFromResources = true;
 
         private Dictionary<int, AbilityData> abilityDictionary = new Dictionary<int, AbilityData>();
 
@@ -39,6 +44,12 @@ namespace Game.Core
         {
             abilityDictionary.Clear();
 
+            // Si autoLoad está activo y la lista está vacía, cargar desde Resources
+            if (autoLoadFromResources)
+            {
+                LoadAbilitiesFromResources();
+            }
+
             foreach (AbilityData ability in allAbilities)
             {
                 if (ability != null)
@@ -55,6 +66,31 @@ namespace Game.Core
             }
 
             Debug.Log($"[AbilityDatabase] Inicializado con {abilityDictionary.Count} habilidades.");
+        }
+
+        /// <summary>
+        /// Carga todas las habilidades desde Resources/Abilities
+        /// </summary>
+        private void LoadAbilitiesFromResources()
+        {
+            AbilityData[] loadedAbilities = Resources.LoadAll<AbilityData>("Abilities");
+
+            if (loadedAbilities.Length > 0)
+            {
+                Debug.Log($"[AbilityDatabase] Cargadas {loadedAbilities.Length} habilidades desde Resources/Abilities");
+
+                foreach (var ability in loadedAbilities)
+                {
+                    if (!allAbilities.Contains(ability))
+                    {
+                        allAbilities.Add(ability);
+                    }
+                }
+            }
+            else
+            {
+                Debug.Log("[AbilityDatabase] No se encontraron habilidades en Resources/Abilities, usando lista del Inspector");
+            }
         }
 
         /// <summary>

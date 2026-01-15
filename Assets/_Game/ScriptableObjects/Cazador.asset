@@ -25,3 +25,7 @@ MonoBehaviour:
   classAbilities:
   - {fileID: 11400000, guid: b9f41f134f8cb49839d08f0fa3d90415, type: 2}
   - {fileID: 11400000, guid: 48242b33210a342f98326caa8ff3720c, type: 2}
+  - {fileID: 11400000, guid: f089068012364475f8a71cec9aab1bce, type: 2}
+  - {fileID: 11400000, guid: 869717ef0680841d383901fb03e8c607, type: 2}
+  - {fileID: 11400000, guid: 82f84a30e307d4c85ab0c80acc08bdf2, type: 2}
+  - {fileID: 11400000, guid: 66c169be9729f475d8aa04231cdce385, type: 2}

@@ -137,3 +137,19 @@
 .ability-button--disabled .ability__icon {
     -unity-background-image-tint-color: rgba(128, 128, 128, 0.5);
 }
+
+/* Cuando está seleccionado (estilo Argentum) */
+.ability-button--selected {
+    /* Borde brillante para indicar selección */
+    border-width: 2px;
+    border-color: rgb(255, 215, 0);
+    border-radius: 4px;
+}
+
+.ability-button--selected .ability__highlight {
+    display: flex;
+}
+
+.ability-button--selected .ability__background {
+    -unity-background-image-tint-color: rgb(255, 230, 150);
+}

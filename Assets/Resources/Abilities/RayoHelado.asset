@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f79883ef23dcd40d0acba4c0e904aa69, type: 3}
-  m_Name: DisparoMultiple
+  m_Name: RayoHelado
   m_EditorClassIdentifier: Assembly-CSharp::Game.Core.AbilityData
-  abilityID: 5
-  abilityName: "Disparo M\xFAltiple"
-  description: "Dispara m\xFAltiples flechas"
-  icon: {fileID: 0}
-  manaCost: 25
-  cooldownTime: 8
-  baseDamage: 35
-  range: 12
+  abilityID: 3
+  abilityName: Rayo Helado
+  description: Dispara un rayo de hielo
+  icon: {fileID: 21300000, guid: de9cd4fe26bbc45f592db84b7a44f926, type: 3}
+  manaCost: 15
+  cooldownTime: 2
+  baseDamage: 20
+  range: 15
   abilityType: 0

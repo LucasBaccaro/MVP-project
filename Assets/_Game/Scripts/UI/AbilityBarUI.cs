@@ -103,6 +103,7 @@ namespace Game.UI
                         playerCombat.OnCooldownStarted += OnCooldownStarted;
                         playerCombat.OnCooldownReady += OnCooldownReady;
                         playerCombat.OnAbilitiesUpdated += OnAbilitiesUpdated;
+                        playerCombat.OnAbilitySelected += OnAbilitySelected;
 
                         Debug.Log($"[AbilityBarUI] PlayerCombat encontrado en intento {attempts} - Inicialización completa");
                         yield break;
@@ -189,12 +190,41 @@ namespace Game.UI
 
         /// <summary>
         /// Llamado cuando se presiona un botón de habilidad
+        /// Usa el mismo sistema que las teclas: rango=seleccionar, melee=ejecutar
         /// </summary>
         public void OnAbilityButtonClicked(int abilityIndex)
         {
             if (playerCombat != null)
             {
-                playerCombat.TryUseAbility(abilityIndex);
+                // Obtener la habilidad para verificar si es de rango o melee
+                var ability = playerCombat.GetAbility(abilityIndex);
+                if (ability != null && ability.range >= 3f)
+                {
+                    // Habilidad de rango - seleccionar para usar con click
+                    playerCombat.SelectAbility(abilityIndex);
+                }
+                else
+                {
+                    // Habilidad melee - ejecutar directamente
+                    playerCombat.TryUseAbility(abilityIndex);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Evento: Habilidad seleccionada (estilo Argentum)
+        /// </summary>
+        private void OnAbilitySelected(int selectedIndex)
+        {
+            // Actualizar visual de todos los botones
+            for (int i = 0; i < abilityButtons.Count; i++)
+            {
+                abilityButtons[i].SetSelected(i == selectedIndex);
+            }
+
+            if (selectedIndex >= 0 && selectedIndex < abilityButtons.Count)
+            {
+                Debug.Log($"[AbilityBarUI] Habilidad {selectedIndex + 1} seleccionada - Click en objetivo para usar");
             }
         }
 
@@ -237,21 +267,22 @@ namespace Game.UI
                 button.UpdateButton();
             }
 
-            // Hotkeys (1, 2, 3, 4, 5, 6) - Solo funcionan si el slot tiene habilidad
-            if (Input.GetKeyDown(KeyCode.Alpha1)) TryUseAbilityAtSlot(0);
-            if (Input.GetKeyDown(KeyCode.Alpha2)) TryUseAbilityAtSlot(1);
-            if (Input.GetKeyDown(KeyCode.Alpha3)) TryUseAbilityAtSlot(2);
-            if (Input.GetKeyDown(KeyCode.Alpha4)) TryUseAbilityAtSlot(3);
+            // NOTA: Los hotkeys (1-4) ahora se manejan en PlayerCombat.Update()
+            // para el sistema de selección de habilidad estilo Argentum
+            // Solo dejamos 5 y 6 que no están implementados en PlayerCombat
             if (Input.GetKeyDown(KeyCode.Alpha5)) TryUseAbilityAtSlot(4);
             if (Input.GetKeyDown(KeyCode.Alpha6)) TryUseAbilityAtSlot(5);
         }
 
         /// <summary>
         /// Intenta usar habilidad en el slot especificado (solo si hay habilidad asignada)
+        /// Este método ya no hace nada porque el input se maneja en PlayerCombat
+        /// Se mantiene para retrocompatibilidad con los clicks de UI
         /// </summary>
         private void TryUseAbilityAtSlot(int slotIndex)
         {
-            // Verificar que el slot tenga una habilidad asignada
+            // El input de teclado ahora se maneja en PlayerCombat.HandleAbilityInput
+            // Este método solo se usa para clicks de UI
             if (playerCombat != null && slotIndex < playerCombat.abilities.Count)
             {
                 OnAbilityButtonClicked(slotIndex);
@@ -266,6 +297,7 @@ namespace Game.UI
                 playerCombat.OnCooldownStarted -= OnCooldownStarted;
                 playerCombat.OnCooldownReady -= OnCooldownReady;
                 playerCombat.OnAbilitiesUpdated -= OnAbilitiesUpdated;
+                playerCombat.OnAbilitySelected -= OnAbilitySelected;
             }
 
             // Cleanup de botones
@@ -408,6 +440,23 @@ namespace Game.UI
             if (buttonRoot != null)
             {
                 buttonRoot.RemoveFromClassList("ability-button--on-cooldown");
+            }
+        }
+
+        /// <summary>
+        /// Marca el botón como seleccionado (estilo Argentum)
+        /// </summary>
+        public void SetSelected(bool selected)
+        {
+            if (buttonRoot == null) return;
+
+            if (selected)
+            {
+                buttonRoot.AddToClassList("ability-button--selected");
+            }
+            else
+            {
+                buttonRoot.RemoveFromClassList("ability-button--selected");
             }
         }
 
